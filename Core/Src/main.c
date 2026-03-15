@@ -25,7 +25,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include <stdio.h>
+// #include <stdio.h>
+#include "MyUART.h"
 
 /* USER CODE END Includes */
 
@@ -59,31 +60,7 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-//prinf重定义
-// int fputc(int ch, FILE *f)
-// {
-// 	uint8_t temp[1] = {ch};
-// 	HAL_UART_Transmit(&huart1, temp, 1, 2);
-//     return ch;
-// }
 
-// 声明你的UART句柄（请根据实际使用的串口修改，例如 &huart2）
-extern UART_HandleTypeDef huart1;
-
-/**
- * @brief   GCC环境下重定向 _write 函数到串口
- * @param  file  文件描述符（未使用）
- * @param  ptr   要发送的数据指针
- * @param  len   要发送的数据长度
- * @retval 成功发送的字节数
- */
-int _write(int file, char *ptr, int len)
-{
-    // 通过HAL库函数将数据通过串口发出
-    // HAL_MAX_DELAY 表示无限等待，直到发送完成
-    HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
-    return len;
-}
 
 
 float a = 3.14f;
