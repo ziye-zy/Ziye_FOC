@@ -57,6 +57,20 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define PWM1_Pin GPIO_PIN_4
+#define PWM1_GPIO_Port GPIOA
+#define PWM2_Pin GPIO_PIN_6
+#define PWM2_GPIO_Port GPIOA
+#define MRESET_Pin GPIO_PIN_4
+#define MRESET_GPIO_Port GPIOC
+#define PWM3_Pin GPIO_PIN_0
+#define PWM3_GPIO_Port GPIOB
+#define PWMEN_Pin GPIO_PIN_1
+#define PWMEN_GPIO_Port GPIOB
+#define AS5600_SCL_Pin GPIO_PIN_6
+#define AS5600_SCL_GPIO_Port GPIOC
+#define AS5600_SDA_Pin GPIO_PIN_8
+#define AS5600_SDA_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 
