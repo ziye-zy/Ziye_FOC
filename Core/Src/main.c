@@ -164,6 +164,28 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+uint16_t T2Count1 = 0;
+uint16_t FOC_Time = 5;
+
+//定时器中断回调函数
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance == htim2.Instance)
+	{
+		T2Count1++;
+		if (T2Count1 >= FOC_Time)
+		{
+			T2Count1 = 0;
+			// Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
+//			Velocity_OpenLoop(10,Uq,Ud);
+//			Get_PhaseVoltage(U);
+//			Angle = Get_Angle();
+//			printf("%f,%f,%f,%f\r\n",U[0],U[1],U[2],Angle);
+		}
+	}
+}
+
+
 /* USER CODE END 4 */
 
 /**
