@@ -1,5 +1,7 @@
 #include "AS5600.h"
 
+AS5600_Status AS5600_S = {0};
+
 void AS5600_W_SCL(uint8_t x)
 {
 	HAL_GPIO_WritePin(AS5600_SCL_GPIO_Port, AS5600_SCL_Pin, (GPIO_PinState)(x));
@@ -191,8 +193,8 @@ uint8_t AS5600_ReadReg(uint16_t addr)
 *@fuction	: AS5600_Check
 *@brief		: 检测AS5600是否存在
 *@param		: None
-*@return	: 0: 存在
-              1: 从机设备连接失败
+*@return	: 1: 存在
+              0: 从机设备连接失败
 *@author	: HongScholar
 *@date		: 2024.02.01
 ***********************************************************/
@@ -203,7 +205,7 @@ uint8_t AS5600_CheckDevice(void)
     AS5600_IIC_SendByte(0x36<<1);
     ack = AS5600_IIC_WaitAck();
     AS5600_IIC_Stop();
-    return ack;
+    return !ack;
 }
  
  
@@ -319,15 +321,7 @@ float AS5600_GetAngle(void)
 ***********************************************************/
 void AS5600_Init(void)
 {
-    
-    /* 检查从机地址*/
-//    while( AS5600_CheckDevice() )
-//    {
-//        // ...
-//    }
-    /* 检查磁环*/
-//    while( AS5600_GetMagnetStatus() != MD)
-//    {
-//        
-//    }
+    AS5600_S.as5600Status = AS5600_CheckDevice();
+    AS5600_S.BurnTime = AS5600_GetBurnTime();
+    AS5600_S.MagStatus = AS5600_CheckMagnet();
 }

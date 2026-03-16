@@ -4,6 +4,7 @@
 #include "main.h"
 #include "gpio.h"
 #include "Delay.h"
+#include <stdint.h>
 
 #define AS5600_Delay()         Delay_us(1)
 
@@ -39,9 +40,21 @@ typedef enum /* 磁铁的状态*/
     ML =2,     // too weak
     MH =3,      // too strong
 
-    MN =0
+    MN =0       //未检测到磁铁
 
 }MagnetStatus;
+
+
+//AS5600状态结构体
+typedef struct
+{
+    uint8_t as5600Status;   //设备是否存在 1为存在，0为不存在
+    MagnetStatus MagStatus; //磁铁状态
+    uint8_t BurnTime;       //编程次数
+}AS5600_Status;
+
+
+extern AS5600_Status AS5600_S;
 
 /**** 函数 ****/
 void AS5600_Init(void);
