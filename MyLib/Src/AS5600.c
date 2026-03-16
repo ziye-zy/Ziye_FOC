@@ -115,7 +115,7 @@ void AS5600_IIC_SendByte(uint8_t Byte)
 ***********************************************************/
 uint8_t AS5600_IIC_ReceiveByte(uint8_t Ack)
 {
-    uint8_t dat;
+    uint8_t dat = 0;
     
     for(uint8_t i=0; i<8; i++)
     {
@@ -254,7 +254,7 @@ MagnetStatus AS5600_CheckMagnet(void)
     if(status&0x08)
         return MH;  // 太强
     
-        return 0;
+    return 0;
 }
  
  

@@ -37,7 +37,10 @@ typedef enum /* 磁铁的状态*/
 {
     MD =1,     // 检测到有磁铁且强度刚好
     ML =2,     // too weak
-    MH =3      // too strong
+    MH =3,      // too strong
+
+    MN =0
+
 }MagnetStatus;
 
 /**** 函数 ****/
