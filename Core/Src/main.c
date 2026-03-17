@@ -27,6 +27,9 @@
 
 // #include <stdio.h>
 #include "MyUART.h"
+#include "AS5600.h"
+#include "arm_math.h"
+#include "FOC.h"
 
 /* USER CODE END Includes */
 
@@ -49,6 +52,12 @@
 
 /* USER CODE BEGIN PV */
 
+// float a = 3.14f;
+
+float Uq = 0, Ud = 0;
+float U[3] = {0,0,0};
+float Angle = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,7 +70,6 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 
 
-float a = 3.14f;
 
 /* USER CODE END 0 */
 
@@ -83,6 +91,7 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -99,17 +108,28 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
+    HAL_TIM_Base_Start_IT(&htim2);
+
+    AS5600_Init();
+
+	MyFOC_Init();
+	
+	Get_ZeroElAngle();
+	
+	Uq = 1;
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    printf("Hello World\r\n");
-    printf("PI = %f\r\n",a);
 
-    HAL_Delay(500);
-
+	Get_PhaseVoltage(U);
+	Angle = Get_Angle();
+    printf("%f,%f,%f,%f\r\n",U[0],U[1],U[2],Angle);
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -165,22 +185,18 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 
 uint16_t T2Count1 = 0;
-uint16_t FOC_Time = 5;
+uint16_t FOC_Time = 10;
 
 //定时器中断回调函数
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	if (htim->Instance == htim2.Instance)
+	if (htim->Instance == TIM2)
 	{
 		T2Count1++;
 		if (T2Count1 >= FOC_Time)
 		{
 			T2Count1 = 0;
-			// Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
-//			Velocity_OpenLoop(10,Uq,Ud);
-//			Get_PhaseVoltage(U);
-//			Angle = Get_Angle();
-//			printf("%f,%f,%f,%f\r\n",U[0],U[1],U[2],Angle);
+			Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
 		}
 	}
 }
