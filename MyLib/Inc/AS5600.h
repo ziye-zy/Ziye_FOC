@@ -6,7 +6,7 @@
 #include "Delay.h"
 #include <stdint.h>
 
-#define AS5600_Delay()         Delay_us(1)
+#define AS5600_Delay()         Delay_us(2)
 
 /**** 宏定义 ****/
  

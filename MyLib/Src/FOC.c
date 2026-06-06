@@ -100,7 +100,7 @@ void Set_PhaseVoltage(float Uq, float Ud, float elAngle)
 	Ualpha = Ud * cos_elangle - Uq * sin_elangle;
 	Ubeta = Uq *cos_elangle + Ud * sin_elangle;
 	
-	input_value = -sqrt(Uq*Uq + Ud*Ud)/6*arm_sin_f32(elAngle*3);
+	// input_value = -sqrt(Uq*Uq + Ud*Ud)/6*arm_sin_f32(elAngle*3);
 	
 //	input_value = 0;
 	
@@ -123,6 +123,7 @@ void Get_PhaseVoltage(float* arr)
 
 void Get_ZeroElAngle()
 {
+    Delay_ms(500);
 	Set_PhaseVoltage(3, 0, 3*PI/2);
 	Delay_ms(3000);
 	Zero_elAngle = Get_Electrical_Angle();

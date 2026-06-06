@@ -108,7 +108,6 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-    HAL_TIM_Base_Start_IT(&htim2);
 
     AS5600_Init();
 
@@ -118,6 +117,9 @@ int main(void)
 	
 	Uq = 1;
 
+    HAL_TIM_Base_Start_IT(&htim2);
+
+
 
   /* USER CODE END 2 */
 
@@ -126,10 +128,16 @@ int main(void)
   while (1)
   {
 
-	Get_PhaseVoltage(U);
-	Angle = Get_Angle();
-    printf("%f,%f,%f,%f\r\n",U[0],U[1],U[2],Angle);
+	// Get_PhaseVoltage(U);
+	// Angle = Get_Angle();
+    // printf("%f,%f,%f,%f\r\n",U[0],U[1],U[2],Angle);
     
+    // Angle = AS5600_GetAngleData() / 4096.0 * 2*PI;
+    // printf("%f\r\n",Angle);
+
+    // printf("%d,%d\r\n",AS5600_S.as5600Status,AS5600_S.MagStatus);
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -197,6 +205,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		{
 			T2Count1 = 0;
 			Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
+            Get_PhaseVoltage(U);
+            printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
 		}
 	}
 }
