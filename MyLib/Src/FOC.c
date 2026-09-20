@@ -78,7 +78,7 @@ void Set_PWM(float Ua, float Ub, float Uc)
 	MyFOC_SetPWM3C(PWM3);
 }
 
-//设置相电压(正弦注入SVPWM)
+//设置相电压(SPWM)
 void Set_PhaseVoltage(float Uq, float Ud, float elAngle)
 {	
 //	if(elAngle == -1)
@@ -91,8 +91,6 @@ void Set_PhaseVoltage(float Uq, float Ud, float elAngle)
 	float sin_elangle = 0, cos_elangle = 0;
 	float input_value = 0;
 	
-	//帕克逆变换
-//	arm_sin_cos_f32(elAngle, &sin_elangle, &cos_elangle);
 	
 	sin_elangle = arm_sin_f32(elAngle);
 	cos_elangle = arm_cos_f32(elAngle);
@@ -100,10 +98,8 @@ void Set_PhaseVoltage(float Uq, float Ud, float elAngle)
 	Ualpha = Ud * cos_elangle - Uq * sin_elangle;
 	Ubeta = Uq *cos_elangle + Ud * sin_elangle;
 	
-	// input_value = -sqrt(Uq*Uq + Ud*Ud)/6*arm_sin_f32(elAngle*3);
 	
-//	input_value = 0;
-	
+
 	//克拉克逆变换
 	Ua = Ualpha + input_value + Power_Valtage/2;
 	Ub = (sqrt(3) * Ubeta - Ualpha) / 2 + input_value + Power_Valtage/2;
