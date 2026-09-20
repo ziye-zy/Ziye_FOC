@@ -16,18 +16,22 @@ static uint16_t PWM3 = 0;
 
 static int8_t Dir = -1;
 
-void MyFOC_Init()
-{
-	HAL_GPIO_WritePin(PWMEN_GPIO_Port, PWMEN_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(MRESET_GPIO_Port, MRESET_Pin, GPIO_PIN_SET);
-}
-
 void MyFOC_PWM_Start()
 {
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
 }
+
+void MyFOC_Init()
+{
+	HAL_GPIO_WritePin(PWMEN_GPIO_Port, PWMEN_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(MRESET_GPIO_Port, MRESET_Pin, GPIO_PIN_SET);
+    MyFOC_PWM_Start();
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 4200-2);
+}
+
 
 void MyFOC_SetPWM1C(uint16_t Num)
 {
@@ -67,7 +71,7 @@ float Get_Angle()
 
 void Set_PWM(float Ua, float Ub, float Uc)
 {
-	MyFOC_PWM_Start();
+	// MyFOC_PWM_Start();
 	
 	PWM1 = TPWM * Constrain(Ua/Power_Valtage,0.0f,1.0f);
 	PWM2 = TPWM * Constrain(Ub/Power_Valtage,0.0f,1.0f);

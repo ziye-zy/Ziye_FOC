@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
+#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -55,9 +57,11 @@
 // float a = 3.14f;
 
 float Uq = 0, Ud = 0;
-float U[3] = {0,0,0};
+float U[3] = {0,0,0};   //三相电压值存储
 float Angle = 0;
 
+uint16_t ADC_Value[2] = {0,0};
+uint16_t IC = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,7 +73,13 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-
+// void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+// {
+//     if (hadc == &hadc1)
+//     {
+//         printf("%d,%d\r\n",ADC_Value[0],ADC_Value[1]);
+//     }
+// }
 
 /* USER CODE END 0 */
 
@@ -103,9 +113,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -118,6 +130,10 @@ int main(void)
 	Uq = 1;
 
     HAL_TIM_Base_Start_IT(&htim2);
+
+    // HAL_ADCEx_Calibration_Start(&hadc1,);
+
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_Value, 2);
 
 
 
@@ -137,7 +153,26 @@ int main(void)
 
     // printf("%d,%d\r\n",AS5600_S.as5600Status,AS5600_S.MagStatus);
 
+    //----ADCtest----
 
+    // HAL_ADC_Start(&hadc1);
+    // HAL_ADC_PollForConversion(&hadc1, 100);
+    // HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_Value, 2);
+
+    // uint8_t TIM3C4 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7);
+    // uint8_t TIM3C3 = 0;
+    // if (TIM3C4 == 1)
+    // {
+    //     TIM3C3 ++;
+    // }
+    IC = 1985*3-(ADC_Value[0] + ADC_Value[1]);
+    printf("%d,%d,%d\r\n",ADC_Value[0],ADC_Value[1],IC);
+
+    // printf("%d,%d\r\n",TIM3C4,TIM3C3);
+
+    // uint32_t ADC_Value = HAL_ADC_GetValue(&hadc1);
+
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -206,7 +241,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			T2Count1 = 0;
 			Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
             Get_PhaseVoltage(U);
-            printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
+            // printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
 		}
 	}
 }
