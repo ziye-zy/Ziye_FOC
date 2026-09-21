@@ -63,7 +63,10 @@ float U[3] = {0,0,0};   //三相电压值存储
 int16_t iabc_raw[3] = {0,0,0};
 
 float ialpha_beta[2] = {0,0};
+
 float idq[2] = {0,0};
+
+float idq_ref[2] = {0.0f,0.100f};
 
 // --标志位--
 
@@ -114,7 +117,9 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
             Get_Electrical_Angle();
 
             Get_idiq(iabc_raw, ialpha_beta, idq);
-            Set_PhaseVoltage(Uq, Ud);
+
+            Current_PI_Control(idq_ref, idq);
+            // Set_PhaseVoltage(Uq, Ud);
         }
     }
 }
@@ -178,7 +183,7 @@ int main(void)
 
     HAL_TIM_Base_Start_IT(&htim2);  // 开启定时器2
 
-	Uq = 1;
+	// Uq = 1;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -287,9 +292,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
             // printf("%d,%d,%d\r\n",iabc_raw[0],iabc_raw[1],iabc_raw[2]);
 
-            // printf("%f,%f\r\n",idq[0],idq[1]);
+            printf("%f,%f\r\n",idq[0],idq[1]);
 
-            printf("%f,%f\r\n",ialpha_beta[0],ialpha_beta[1]);
+            // printf("%f,%f\r\n",ialpha_beta[0],ialpha_beta[1]);
 
             // printf("%d,%d\r\n",ia_zero,ib_zero);
 		}
