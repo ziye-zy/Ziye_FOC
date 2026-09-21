@@ -43,6 +43,11 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+#define FC_HZ      6000.0f
+#define TS_SEC     0.00005f   // 50us
+#define ALPHA      0.653f      // (2.0f * 3.1415926f * FC_HZ * TS_SEC / (1.0f + 2.0f * 3.1415926f * FC_HZ * TS_SEC))
+// ALPHA ≈ 0.653
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -66,7 +71,7 @@ float ialpha_beta[2] = {0,0};
 
 float idq[2] = {0,0};
 
-float idq_ref[2] = {0.0f,0.100f};
+float idq_ref[2] = {0.0f,0.500f};
 
 // --标志位--
 
@@ -80,6 +85,11 @@ uint32_t ib_zero = 0;
 
 uint8_t i_count = 0;
 
+// -- 滤波器 --
+
+int16_t iabc_filt[3] = {0.0f, 0.0f, 0.0f};
+
+uint8_t filt_init = 0;
 
 /* USER CODE END PV */
 
@@ -112,11 +122,23 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
         {
             iabc_raw[0] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1)-ia_zero;
             iabc_raw[1] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2)-ib_zero;
-            iabc_raw[2] = -iabc_raw[0] - iabc_raw[1];
+            // iabc_raw[2] = -iabc_raw[0] - iabc_raw[1];
+
+            if (!filt_init)
+            {
+                iabc_filt[0] = iabc_raw[0];
+                iabc_filt[1] = iabc_raw[1];
+            }
+            else 
+            {
+                iabc_filt[0] = iabc_filt[0] * (1.0f - ALPHA) + ALPHA * iabc_raw[0];
+                iabc_filt[1] = iabc_filt[1] * (1.0f - ALPHA) + ALPHA * iabc_raw[1];
+                iabc_filt[2] = -iabc_filt[0] - iabc_filt[1];
+            }
 
             Get_Electrical_Angle();
 
-            Get_idiq(iabc_raw, ialpha_beta, idq);
+            Get_idiq(iabc_filt, ialpha_beta, idq);
 
             Current_PI_Control(idq_ref, idq);
             // Set_PhaseVoltage(Uq, Ud);

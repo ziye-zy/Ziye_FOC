@@ -18,6 +18,7 @@ float I_Error_sum[2] = {0.0f, 0.0f};
 float Udq_ref[2] = {0.0f, 0.0f};
 
 float Ki_MAX = 5.0f;
+float Udq_MAX = 5.0f;
 
 // -- --
 
@@ -215,5 +216,5 @@ void Current_PI_Control(float* idq_ref, float* idq)
     Udq_ref[0] = Kp_I * I_Error[0] + Constrain(Ki_I * I_Error_sum[0],-Ki_MAX,Ki_MAX);
     Udq_ref[1] = Kp_I * I_Error[1] + Constrain(Ki_I * I_Error_sum[1],-Ki_MAX,Ki_MAX);
 
-    Set_PhaseVoltage(Constrain(Udq_ref[0],-Ki_MAX,Ki_MAX), Constrain(Udq_ref[1],-Ki_MAX,Ki_MAX));
+    Set_PhaseVoltage(Constrain(Udq_ref[0],-Udq_MAX,Udq_MAX), Constrain(Udq_ref[1],-Udq_MAX,Udq_MAX));
 }
