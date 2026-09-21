@@ -10,7 +10,7 @@ static float Zero_elAngle = 0;
 static float angle = 0;     //机械角度 0-2PI
 float elAngle = 0;
 
-float ialpha_beta[2] = {0, 0};
+// float ialpha_beta[2] = {0, 0};
 
 static uint16_t PWM1 = 0;
 static uint16_t PWM2 = 0;
@@ -20,7 +20,7 @@ static int8_t Dir = -1;
 
 float sin_elangle = 0, cos_elangle = 0;     // 电角度正余弦值
 
-float sqrt3 = 
+float sqrt3 = 0;
 
 void MyFOC_PWM_Start()
 {
@@ -160,7 +160,12 @@ void Get_ZeroElAngle()
 // }
 
 //clark与park变换获取idiq
-void Get_idiq(int16_t* iabc, int16_t* idq)
+void Get_idiq(int16_t* iabc, float* ialpha_beta, float* idq)
 {
-    ialpha_beta[0] = 0;
+    ialpha_beta[0] = (2 * iabc[0] - iabc[1] - iabc[2])/3.0f;
+    ialpha_beta[1] = (iabc[1] - iabc[2])*3.0f/sqrt3;
+
+    idq[0] = ialpha_beta[0]*cos_elangle + ialpha_beta[1]*sin_elangle;
+    idq[1] = -ialpha_beta[0]*sin_elangle + ialpha_beta[1]*cos_elangle;
 }
+

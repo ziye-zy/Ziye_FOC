@@ -20,14 +20,16 @@
 
 void MyFOC_Init();
 void MyFOC_PWM_Start();
-void MyFOC_SetPWM1C(uint16_t Num);
-void MyFOC_SetPWM2C(uint16_t Num);
-void MyFOC_SetPWM3C(uint16_t Num);
+// void MyFOC_SetPWM1C(uint16_t Num);
+// void MyFOC_SetPWM2C(uint16_t Num);
+// void MyFOC_SetPWM3C(uint16_t Num);
 
 void Set_PhaseVoltage(float Uq, float Ud);
 void Get_PhaseVoltage(float* arr);
 void Get_ZeroElAngle();
 float Get_Angle();
+
+void Get_idiq(int16_t* iabc,float* ialpha_beta, float* idq);
 
 void Get_Electrical_Angle();
 

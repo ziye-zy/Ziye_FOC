@@ -62,6 +62,9 @@ float U[3] = {0,0,0};   //三相电压值存储
 
 int16_t iabc_raw[3] = {0,0,0};
 
+float ialpha_beta[2] = {0,0};
+float idq[2] = {0,0};
+
 // --标志位--
 
 uint8_t i_curb_flag = 0;    //电流环控制标志位
@@ -110,6 +113,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
 
             Get_Electrical_Angle();
 
+            Get_idiq(iabc_raw, ialpha_beta, idq);
             Set_PhaseVoltage(Uq, Ud);
         }
     }
@@ -281,7 +285,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // Get_PhaseVoltage(U);
             // printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
 
-            printf("%d,%d,%d\r\n",iabc_raw[0],iabc_raw[1],iabc_raw[2]);
+            // printf("%d,%d,%d\r\n",iabc_raw[0],iabc_raw[1],iabc_raw[2]);
+
+            // printf("%f,%f\r\n",idq[0],idq[1]);
+
+            printf("%f,%f\r\n",ialpha_beta[0],ialpha_beta[1]);
+
             // printf("%d,%d\r\n",ia_zero,ib_zero);
 		}
 	}
