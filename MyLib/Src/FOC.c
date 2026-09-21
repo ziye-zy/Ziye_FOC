@@ -1,11 +1,5 @@
 #include "FOC.h"
-
-// -- 电机参数 --
-
-float Rs = 1.55f;
-float Ls = 0.0012f;
-float Ts = 0.00005f;    //半个采样周期，采样周期为0.00005s
-float psi_f = 0.004762f;
+#include <stdint.h>
 
 // -- 电流环PI --
 
@@ -20,9 +14,19 @@ float Udq_ref[2] = {0.0f, 0.0f};
 float Ki_MAX = 5.0f;
 float Udq_MAX = 5.0f;
 
-// -- --
 
-static float Power_Valtage = 12;
+// -- SVPWM --
+
+static uint8_t N = 0;
+static float UABC[3] = {0.0f, 0.0f, 0.0f};
+
+static float XYZ[3] = {0.0f, 0.0f, 0.0f};
+static float SVPWM_a = 0.0f;  //矢量作用时间系数
+static float T[2] = {0.0f, 0.0f}; //基本矢量作用时间
+static uint16_t CCR[3] = {0, 0, 0};
+static float Tabc[3] = {0.0f, 0.0f, 0.0f};
+
+static float Udc = 12.0f;
 
 // static float Uq = 0, Ud = 0;
 static float Ua = 0, Ub = 0, Uc = 0;
@@ -30,7 +34,7 @@ static float Ualpha = 0, Ubeta = 0;
 
 static float Zero_elAngle = 0;
 static float angle = 0;     //机械角度 0-2PI
-float elAngle = 0;
+static float elAngle = 0;
 
 // float ialpha_beta[2] = {0, 0};
 
@@ -40,9 +44,9 @@ static uint16_t PWM3 = 0;
 
 static int8_t Dir = -1;
 
-float sin_elangle = 0, cos_elangle = 0;     // 电角度正余弦值
+static float sin_elangle = 0, cos_elangle = 0;     // 电角度正余弦值
 
-float sqrt3 = 0;
+static float sqrt3 = 0;
 
 void MyFOC_PWM_Start()
 {
@@ -59,7 +63,7 @@ void MyFOC_Init()
     MyFOC_PWM_Start();
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 4200-2);
 
-    sqrt3 = sqrt(3);
+    sqrt3 = sqrt(3.0f);
 
     // -- 计算电流环PI --
     // Kp_I = Ls * 0.5f / Ts;
@@ -71,6 +75,8 @@ void MyFOC_Init()
     // Kp_I = 1.0f;
     // Ki_I = 1.0f;
 
+    // --- 计算SVPWM矢量作用时间系数
+    SVPWM_a = sqrt3 * TPWM / Udc;
 
 }
 
@@ -122,9 +128,9 @@ void Set_PWM(float Ua, float Ub, float Uc)
 {
 	// MyFOC_PWM_Start();
 	
-	PWM1 = TPWM * Constrain(Ua/Power_Valtage,0.0f,1.0f);
-	PWM2 = TPWM * Constrain(Ub/Power_Valtage,0.0f,1.0f);
-	PWM3 = TPWM * Constrain(Uc/Power_Valtage,0.0f,1.0f);
+	PWM1 = TPWM * Constrain(Ua/Udc,0.0f,1.0f);
+	PWM2 = TPWM * Constrain(Ub/Udc,0.0f,1.0f);
+	PWM3 = TPWM * Constrain(Uc/Udc,0.0f,1.0f);
 	
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWM1);
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWM2);
@@ -135,6 +141,7 @@ void Set_PWM(float Ua, float Ub, float Uc)
 	// MyFOC_SetPWM3C(PWM3);
 }
 
+
 //设置相电压(SPWM)
 void Set_PhaseVoltage(float Ud, float Uq)
 {	
@@ -144,15 +151,122 @@ void Set_PhaseVoltage(float Ud, float Uq)
 	
 	
 
-	//克拉克逆变换
-	Ua = Ualpha + Power_Valtage*0.5f;
-	Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Power_Valtage* 0.5f;
-	Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Power_Valtage* 0.5f;
-	
-	
-	
-	Set_PWM(Ua, Ub, Uc);
+	// --- 克拉克逆变换(SPWM) ---
+	// Ua = Ualpha + Udc*0.5f;
+	// Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Udc* 0.5f;
+	// Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Udc* 0.5f;
+    // Set_PWM(Ua, Ub, Uc);
+
+
+	// --- SVPWM ---
+
+    UABC[0] = Ubeta;
+    UABC[1] = (sqrt3 * Ualpha - Ubeta)*0.5f;
+    UABC[2] = (-sqrt3 * Ualpha - Ubeta)*0.5f;
+
+    // 扇区判断
+    N = 0;
+    if(UABC[0] > 0) N += 1;
+    if(UABC[1] > 0) N += 2;
+    if(UABC[2] > 0) N += 4;
+
+    //作用时间计算
+	XYZ[0] = SVPWM_a * UABC[0];
+    XYZ[1] = -SVPWM_a * UABC[2];
+    XYZ[2] = -SVPWM_a * UABC[1];
+
+    switch (N) 
+    {
+        case 3:  // 扇区 I
+            T[0] = -XYZ[2];
+            T[1] = XYZ[0]; 
+            break;
+        case 1:  // 扇区 II
+            T[0] = XYZ[2];
+            T[1] = XYZ[1]; 
+            break;
+        case 5:  // 扇区 III
+            T[0] = XYZ[0];
+            T[1] = -XYZ[1]; 
+            break;
+        case 4:  // 扇区 IV
+            T[0] = -XYZ[0];
+            T[1] = XYZ[2]; 
+            break;
+        case 6:  // 扇区 V
+            T[0] = -XYZ[1];
+            T[1] = -XYZ[2]; 
+            break;
+        case 2:  // 扇区 VI
+            T[0] = XYZ[1];
+            T[1] = -XYZ[0]; 
+            break;
+        default:
+            T[0] = 0;
+            T[1] = 0;
+            break;
+    }
+    
+    //CCR计算
+    Tabc[0] = Constrain((TPWM - T[0] - T[1])*0.25f + 0.5f, 0.0f, TPWM*0.5f);
+    Tabc[1] = Constrain(Tabc[0] + T[0]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
+    Tabc[2] = Constrain(Tabc[1] + T[1]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
+
+    switch (N) 
+    {
+        case 3:  // 扇区 I
+            CCR[0] = Tabc[0];
+            CCR[1] = Tabc[1];
+            CCR[2] = Tabc[2];
+            break;
+        case 1:  // 扇区 II
+            CCR[0] = Tabc[1];
+            CCR[1] = Tabc[0];
+            CCR[2] = Tabc[2];
+            break;
+        case 5:  // 扇区 III
+            CCR[0] = Tabc[2];
+            CCR[1] = Tabc[0];
+            CCR[2] = Tabc[1];
+            break;
+        case 4:  // 扇区 IV
+            CCR[0] = Tabc[2];
+            CCR[1] = Tabc[1];
+            CCR[2] = Tabc[0];
+            break;
+        case 6:  // 扇区 V
+            CCR[0] = Tabc[1];
+            CCR[1] = Tabc[2];
+            CCR[2] = Tabc[0];
+            break;
+        case 2:  // 扇区 VI
+            CCR[0] = Tabc[0];
+            CCR[1] = Tabc[2];
+            CCR[2] = Tabc[1];
+            break;
+        default:
+            CCR[0] = 0;
+            CCR[1] = 0;
+            CCR[2] = 0;
+            break;
+    }
+
+
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, CCR[0]);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, CCR[1]);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, CCR[2]);
+
 }
+
+
+void Get_CCR(uint16_t* ccr)
+{
+	for (int i = 0; i < 3; i++)
+	{
+		ccr[i] = CCR[i];
+	}
+}
+
 
 void Get_PhaseVoltage(float* arr)
 {

@@ -8,10 +8,15 @@
 #include "math.h"
 #include "AS5600.h"
 
+// --- 电机参数 ---
 
-#define Rm				6.5f
+#define Rs				1.55f
 #define POLE_PAIRS		7
-#define TPWM			8400    //中心对称模式故周期为4200x2
+#define TPWM			8400.0f        //中心对称模式故周期为4200x2
+#define Ls              0.0012f
+#define Ts              0.00005f   //半个采样周期，采样周期为0.00005s
+#define psi_f           0.004762f
+
 
 // 限幅函数
 #define Constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
@@ -29,6 +34,8 @@ void Set_PhaseVoltage(float Ud, float Uq);
 void Get_PhaseVoltage(float* arr);
 void Get_ZeroElAngle();
 float Get_Angle();
+
+void Get_CCR(uint16_t* ccr);
 
 void Get_idiq(int16_t* iabc,float* ialpha_beta, float* idq);
 
