@@ -77,9 +77,13 @@ void Set_PWM(float Ua, float Ub, float Uc)
 	PWM2 = TPWM * Constrain(Ub/Power_Valtage,0.0f,1.0f);
 	PWM3 = TPWM * Constrain(Uc/Power_Valtage,0.0f,1.0f);
 	
-	MyFOC_SetPWM1C(PWM1);
-	MyFOC_SetPWM2C(PWM2);
-	MyFOC_SetPWM3C(PWM3);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWM1);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWM2);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, PWM3);
+
+	// MyFOC_SetPWM1C(PWM1);
+	// MyFOC_SetPWM2C(PWM2);
+	// MyFOC_SetPWM3C(PWM3);
 }
 
 //设置相电压(SPWM)
@@ -93,7 +97,7 @@ void Set_PhaseVoltage(float Uq, float Ud, float elAngle)
 	elAngle = Normalize_Angle(elAngle);
 	
 	float sin_elangle = 0, cos_elangle = 0;
-	float input_value = 0;
+
 	
 	
 	sin_elangle = arm_sin_f32(elAngle);
@@ -105,9 +109,9 @@ void Set_PhaseVoltage(float Uq, float Ud, float elAngle)
 	
 
 	//克拉克逆变换
-	Ua = Ualpha + input_value + Power_Valtage/2;
-	Ub = (sqrt(3) * Ubeta - Ualpha) / 2 + input_value + Power_Valtage/2;
-	Uc = -(Ualpha + sqrt(3) * Ubeta) / 2 + input_value + Power_Valtage/2;
+	Ua = Ualpha + Power_Valtage/2;
+	Ub = (sqrt(3) * Ubeta - Ualpha) / 2 +  Power_Valtage/2;
+	Uc = -(Ualpha + sqrt(3) * Ubeta) / 2 +  Power_Valtage/2;
 	
 	
 	

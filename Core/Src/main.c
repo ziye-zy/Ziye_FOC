@@ -19,7 +19,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
-#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -60,8 +59,8 @@ float Uq = 0, Ud = 0;
 float U[3] = {0,0,0};   //三相电压值存储
 float Angle = 0;
 
-uint16_t ADC_Value[2] = {0,0};
-uint16_t IC = 0;
+uint16_t iabc_raw[3] = {0,0,0};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -73,13 +72,17 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-// void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
-// {
-//     if (hadc == &hadc1)
-//     {
-//         printf("%d,%d\r\n",ADC_Value[0],ADC_Value[1]);
-//     }
-// }
+void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
+    if (hadc->Instance == ADC1) {
+        iabc_raw[0] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
+        iabc_raw[1] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2);
+        iabc_raw[2] = 1985*3-(iabc_raw[0] + iabc_raw[1]);
+
+        Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
+
+        // FOC计算...
+    }
+}
 
 /* USER CODE END 0 */
 
@@ -113,7 +116,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
@@ -133,9 +135,9 @@ int main(void)
 
     // HAL_ADCEx_Calibration_Start(&hadc1,);
 
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_Value, 2);
+    // HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_Value, 2);
 
-
+    HAL_ADCEx_InjectedStart_IT(&hadc1);
 
   /* USER CODE END 2 */
 
@@ -165,8 +167,8 @@ int main(void)
     // {
     //     TIM3C3 ++;
     // }
-    IC = 1985*3-(ADC_Value[0] + ADC_Value[1]);
-    printf("%d,%d,%d\r\n",ADC_Value[0],ADC_Value[1],IC);
+    
+    // printf("%d,%d,%d\r\n",iabc_raw[0],iabc_raw[1],iabc_raw[2]);
 
     // printf("%d,%d\r\n",TIM3C4,TIM3C3);
 
@@ -228,7 +230,7 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 
 uint16_t T2Count1 = 0;
-uint16_t FOC_Time = 10;
+uint16_t FOC_Time = 1;
 
 //定时器中断回调函数
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -239,9 +241,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		if (T2Count1 >= FOC_Time)
 		{
 			T2Count1 = 0;
-			Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
-            Get_PhaseVoltage(U);
+			// Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
+            // Get_PhaseVoltage(U);
             // printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
+            printf("%d,%d,%d\r\n",iabc_raw[0],iabc_raw[1],iabc_raw[2]);
+
 		}
 	}
 }
