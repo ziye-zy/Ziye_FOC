@@ -31,6 +31,7 @@
 #include "AS5600.h"
 #include "arm_math.h"
 #include "FOC.h"
+#include <stdint.h>
 
 /* USER CODE END Includes */
 
@@ -57,9 +58,22 @@
 
 float Uq = 0, Ud = 0;
 float U[3] = {0,0,0};   //三相电压值存储
-float Angle = 0;
+// float Angle = 0;
 
-uint16_t iabc_raw[3] = {0,0,0};
+int16_t iabc_raw[3] = {0,0,0};
+
+// --标志位--
+
+uint8_t i_curb_flag = 0;    //电流环控制标志位
+
+
+// 初始化所需值
+
+uint32_t ia_zero = 0;
+uint32_t ib_zero = 0;
+
+uint8_t i_count = 0;
+
 
 /* USER CODE END PV */
 
@@ -74,14 +88,39 @@ void SystemClock_Config(void);
 
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
     if (hadc->Instance == ADC1) {
-        iabc_raw[0] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
-        iabc_raw[1] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2);
-        iabc_raw[2] = 1985*3-(iabc_raw[0] + iabc_raw[1]);
 
-        Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
+        if (i_curb_flag == 1) //电流偏置量获取
+        {
+            ia_zero += HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1);
+            ib_zero += HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2);
+            i_count ++;
+            if (i_count >= 100)
+            {
+                ia_zero /= 100;
+                ib_zero /= 100;
+                i_curb_flag = 2;
+            }
+        }
 
-        // FOC计算...
+        if (i_curb_flag == 2)   // 电流环控制
+        {
+            iabc_raw[0] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1)-ia_zero;
+            iabc_raw[1] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2)-ib_zero;
+            iabc_raw[2] = -iabc_raw[0] - iabc_raw[1];
+
+            Get_Electrical_Angle();
+
+            Set_PhaseVoltage(Uq, Ud);
+        }
     }
+}
+
+void Get_i_zero()
+{
+    Delay_ms(500);
+    Set_PhaseVoltage(0, 0);
+    Delay_ms(500);
+    i_curb_flag = 1;
 }
 
 /* USER CODE END 0 */
@@ -127,18 +166,15 @@ int main(void)
 
 	MyFOC_Init();
 	
-	Get_ZeroElAngle();
+	Get_ZeroElAngle();  //获取零角度
 	
+    HAL_ADCEx_InjectedStart_IT(&hadc1); // 开启ADC1的注入通道
+
+    Get_i_zero();       //获取电流偏置
+
+    HAL_TIM_Base_Start_IT(&htim2);  // 开启定时器2
+
 	Uq = 1;
-
-    HAL_TIM_Base_Start_IT(&htim2);
-
-    // HAL_ADCEx_Calibration_Start(&hadc1,);
-
-    // HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_Value, 2);
-
-    HAL_ADCEx_InjectedStart_IT(&hadc1);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -244,8 +280,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			// Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
             // Get_PhaseVoltage(U);
             // printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
-            printf("%d,%d,%d\r\n",iabc_raw[0],iabc_raw[1],iabc_raw[2]);
 
+            printf("%d,%d,%d\r\n",iabc_raw[0],iabc_raw[1],iabc_raw[2]);
+            // printf("%d,%d\r\n",ia_zero,ib_zero);
 		}
 	}
 }

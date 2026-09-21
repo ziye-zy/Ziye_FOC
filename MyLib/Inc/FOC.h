@@ -24,13 +24,13 @@ void MyFOC_SetPWM1C(uint16_t Num);
 void MyFOC_SetPWM2C(uint16_t Num);
 void MyFOC_SetPWM3C(uint16_t Num);
 
-void Set_PhaseVoltage(float Uq, float Ud, float elAngle);
+void Set_PhaseVoltage(float Uq, float Ud);
 void Get_PhaseVoltage(float* arr);
 void Get_ZeroElAngle();
 float Get_Angle();
 
-float Get_Electrical_Angle();
+void Get_Electrical_Angle();
 
-void Velocity_OpenLoop(float taget_v, float Uq, float Ud);
+// void Velocity_OpenLoop(float taget_v, float Uq, float Ud);
 
 #endif
