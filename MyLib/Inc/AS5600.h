@@ -5,6 +5,7 @@
 #include "gpio.h"
 #include "Delay.h"
 #include <stdint.h>
+#include "i2c.h"
 
 #define AS5600_Delay()         Delay_us(2)
 
@@ -73,5 +74,8 @@ uint8_t   AS5600_GetBurnTime(void);
 /* 读写AS5600寄存器*/
 void AS5600_WriteReg(uint16_t addr, uint8_t dat);
 uint8_t   AS5600_ReadReg(uint16_t addr);
+
+
+uint16_t My_AS5600_GetRAWAngleData(void);
 
 #endif

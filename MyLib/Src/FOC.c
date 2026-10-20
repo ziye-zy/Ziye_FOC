@@ -1,4 +1,5 @@
 #include "FOC.h"
+#include "AS5600.h"
 #include <stdint.h>
 
 // -- 电流环PI --
@@ -118,7 +119,9 @@ float recordbuf1[256];
 //电角度求解
 void Get_Electrical_Angle()
 {
-	angle_raw = AS5600_GetAngleData();
+	angle_raw = My_AS5600_GetRAWAngleData();
+
+    // angle_raw = angle_raw1;
 
     angle = angle_raw / 4096.0f * 2*PI;
 		

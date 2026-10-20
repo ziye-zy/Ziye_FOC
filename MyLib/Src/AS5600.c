@@ -1,4 +1,6 @@
 #include "AS5600.h"
+#include "stm32g4xx_hal_i2c.h"
+#include <stdint.h>
 
 AS5600_Status AS5600_S = {0};
 
@@ -324,4 +326,15 @@ void AS5600_Init(void)
     AS5600_S.as5600Status = AS5600_CheckDevice();
     AS5600_S.BurnTime = AS5600_GetBurnTime();
     AS5600_S.MagStatus = AS5600_CheckMagnet();
+}
+
+uint16_t My_AS5600_GetRAWAngleData(void)
+{
+    uint8_t temp[2] = {0,0};
+
+    HAL_I2C_Mem_Read(&hi2c1, 0x36 << 1, AS5600_AngleADDR_H, 1, temp, 2, 100);
+    uint16_t my_angle = (temp[0] << 8) | temp[1];
+    
+    return my_angle;
+
 }

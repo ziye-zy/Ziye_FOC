@@ -19,6 +19,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dma.h"
+#include "i2c.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -104,6 +106,43 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+#define AS5600_I2C_ADDR    (0x36 << 1)  // 7位地址0x36左移一位，HAL库要求8位格式[reference:5]
+#define AS5600_REG_ANGLE   0x0E         // ANGLE寄存器高字节地址
+
+// extern I2C_HandleTypeDef hi2c1;         // 假设使用I2C1
+
+uint8_t  as5600_rx_buf[2];              // DMA接收缓冲区
+volatile uint16_t as5600_angle = 0;     // 解析后的12位角度值（0~4095）
+volatile uint8_t  as5600_data_ready = 0;// 数据就绪标志
+
+/**
+ * @brief  启动一次AS5600角度值的DMA读取（非阻塞）
+ * @retval HAL status
+ */
+void AS5600_ReadAngle_DMA(void)
+{
+    // Mem_Read_DMA: 从设备地址 AS5600_I2C_ADDR 的 AS5600_REG_ANGLE 寄存器开始，
+    // 读取 2 个字节到 as5600_rx_buf，使用 I2C 内存读取的 DMA 模式
+    HAL_I2C_Mem_Read_DMA(&hi2c1, 
+                                AS5600_I2C_ADDR, 
+                                AS5600_REG_ANGLE, 
+                                I2C_MEMADD_SIZE_8BIT, // AS5600寄存器地址为8位
+                                as5600_rx_buf, 
+                                2);
+}
+
+/**
+ * @brief  I2C内存读取DMA完成回调（重写HAL弱函数）
+ */
+void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
+    if (hi2c->Instance == I2C1) {
+        // 合并高字节和低字节，得到12位角度值（高4位无效，可忽略）
+        as5600_angle = ((uint16_t)as5600_rx_buf[0] << 8) | as5600_rx_buf[1];
+        as5600_data_ready = 1; // 通知主循环或控制中断：新数据已就绪
+    }
+}
+
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
     if (hadc->Instance == ADC1) {
 
@@ -140,7 +179,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
 
             Get_Electrical_Angle();
 
-            Get_idiq(iabc_raw, ialpha_beta, idq);
+            // Get_idiq(iabc_raw, ialpha_beta, idq);
 
             // Current_PI_Control(idq_ref, idq);
             Set_PhaseVoltage(Ud, Uq);
@@ -188,10 +227,13 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_ADC1_Init();
+  MX_I2C1_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -207,6 +249,8 @@ int main(void)
 
     HAL_TIM_Base_Start_IT(&htim2);  // 开启定时器2
 
+
+
 	// Uq = 1;
   /* USER CODE END 2 */
 
@@ -214,6 +258,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+    // printf("%d\r\n",My_AS5600_GetRAWAngleData());
+    // Delay_ms(100);
+
 
 	// Get_PhaseVoltage(U);
 	// Angle = Get_Angle();
@@ -320,7 +368,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // printf("%d,%d,%d\r\n",ccr[0],ccr[1],ccr[2]);
             // Get_Angle();
             // printf("%f,%f\r\n",idq[0],idq[1]);
-            // Get_Electrical_Angle();
+            Get_Electrical_Angle();
+            // if (as5600_data_ready) {
+            //     as5600_data_ready = 0;          // 清除标志
+                
+            //     // 此处使用 as5600_angle 进行角度换算或FOC计算
+            //     // 例如: float angle_rad = (as5600_angle / 4096.0f) * 2.0f * 3.1415926f;
+            //     Get_Electrical_Angle();
+            //     // 重新启动下一次DMA读取（Non-blocking）
+            //     AS5600_ReadAngle_DMA(); 
+            // }
             printf("%f,%d\r\n",Get_Angle(),Get_Angle_raw());
 
             // printf("%f,%f\r\n",ialpha_beta[0],ialpha_beta[1]);
