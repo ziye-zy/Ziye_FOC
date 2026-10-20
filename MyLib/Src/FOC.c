@@ -32,9 +32,10 @@ static float Udc = 12.0f;
 static float Ua = 0, Ub = 0, Uc = 0;
 static float Ualpha = 0, Ubeta = 0;
 
-static float Zero_elAngle = 0;
-static float angle = 0;     //机械角度 0-2PI
-static float elAngle = 0;
+static float Zero_elAngle = 0.0f;
+static float angle = 0.0f;     //处理后的机械角度 0-2PI
+static uint16_t angle_raw = 0;  // 角度原始值
+static float elAngle = 0.0f;
 
 // float ialpha_beta[2] = {0, 0};
 
@@ -69,8 +70,8 @@ void MyFOC_Init()
     // Kp_I = Ls * 0.5f / Ts;
     // Ki_I = Rs * 0.5f / Ts;
 
-    Kp_I = Ls * 0.5f;
-    Ki_I = Rs * 0.5f;
+    Kp_I = Ls * 0.25f;
+    Ki_I = Rs * 0.25f;
 
     // Kp_I = 1.0f;
     // Ki_I = 1.0f;
@@ -104,24 +105,43 @@ float Normalize_Angle(float angle)
 	return (temp >= 0 ? temp : (temp + 2*PI));
 }
 
+uint16_t recordbuf[256];
+float recordbuf1[256];
+// void record()
+// {
+//     pointer++;
 
+//     recordbuf[pointer&0xFF] = angle;
+//     recodebuf1[pointer&0xFF] = elAngle;
+// }
 
 //电角度求解
 void Get_Electrical_Angle()
 {
-	angle = AS5600_GetAngleData() / 4096.0f * 2*PI;
+	angle_raw = AS5600_GetAngleData();
+
+    angle = angle_raw / 4096.0f * 2*PI;
 		
 	// return Dir * angle * POLE_PAIRS - Zero_elAngle;
 
     elAngle = Normalize_Angle(Dir * angle * POLE_PAIRS - Zero_elAngle);
 	
+    // record();//出现突变停止
+
 	sin_elangle = arm_sin_f32(elAngle);
 	cos_elangle = arm_cos_f32(elAngle);
 }
 
+
+
 float Get_Angle()
 {
 	return angle;
+}
+
+uint16_t Get_Angle_raw()
+{
+	return angle_raw;
 }
 
 void Set_PWM(float Ua, float Ub, float Uc)
@@ -152,6 +172,7 @@ void Set_PhaseVoltage(float Ud, float Uq)
 	
 
 	// --- 克拉克逆变换(SPWM) ---
+
 	// Ua = Ualpha + Udc*0.5f;
 	// Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Udc* 0.5f;
 	// Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Udc* 0.5f;

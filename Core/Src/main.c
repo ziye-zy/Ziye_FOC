@@ -124,23 +124,23 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
         {
             iabc_raw[0] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1)-ia_zero;
             iabc_raw[1] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2)-ib_zero;
-            // iabc_raw[2] = -iabc_raw[0] - iabc_raw[1];
+            iabc_raw[2] = -iabc_raw[0] - iabc_raw[1];
 
-            if (!filt_init)
-            {
-                iabc_filt[0] = iabc_raw[0];
-                iabc_filt[1] = iabc_raw[1];
-            }
-            else 
-            {
-                iabc_filt[0] = iabc_filt[0] * (1.0f - ALPHA) + ALPHA * iabc_raw[0];
-                iabc_filt[1] = iabc_filt[1] * (1.0f - ALPHA) + ALPHA * iabc_raw[1];
-                iabc_filt[2] = -iabc_filt[0] - iabc_filt[1];
-            }
+            // if (!filt_init)
+            // {
+            //     iabc_filt[0] = iabc_raw[0];
+            //     iabc_filt[1] = iabc_raw[1];
+            // }
+            // else 
+            // {
+            //     iabc_filt[0] = iabc_filt[0] * (1.0f - ALPHA) + ALPHA * iabc_raw[0];
+            //     iabc_filt[1] = iabc_filt[1] * (1.0f - ALPHA) + ALPHA * iabc_raw[1];
+            //     iabc_filt[2] = -iabc_filt[0] - iabc_filt[1];
+            // }
 
             Get_Electrical_Angle();
 
-            Get_idiq(iabc_filt, ialpha_beta, idq);
+            Get_idiq(iabc_raw, ialpha_beta, idq);
 
             // Current_PI_Control(idq_ref, idq);
             Set_PhaseVoltage(Ud, Uq);
@@ -315,9 +315,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
 
             // printf("%d,%d,%d\r\n",iabc_raw[0],iabc_raw[1],iabc_raw[2]);
-            Get_CCR(ccr);
-            printf("%d,%d,%d\r\n",ccr[0],ccr[1],ccr[2]);
+
+            // Get_CCR(ccr);
+            // printf("%d,%d,%d\r\n",ccr[0],ccr[1],ccr[2]);
+            // Get_Angle();
             // printf("%f,%f\r\n",idq[0],idq[1]);
+            // Get_Electrical_Angle();
+            printf("%f,%d\r\n",Get_Angle(),Get_Angle_raw());
 
             // printf("%f,%f\r\n",ialpha_beta[0],ialpha_beta[1]);
 

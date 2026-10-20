@@ -288,7 +288,7 @@ uint16_t AS5600_GetRAWAngleData(void)
 ***********************************************************/
 uint16_t AS5600_GetAngleData(void)
 {
-    uint16_t angle;
+    uint16_t angle = 0;
     angle = AS5600_ReadReg(AS5600_AngleADDR_H);
     angle <<= 8;
     angle |= AS5600_ReadReg(AS5600_AngleADDR_L);

@@ -14,7 +14,7 @@
 #define POLE_PAIRS		7
 #define TPWM			8400.0f        //中心对称模式故周期为4200x2
 #define Ls              0.0012f
-#define Ts              0.00005f   //半个采样周期，采样周期为0.00005s
+#define Ts              0.000025f   //半个采样周期，采样周期为0.00005s
 #define psi_f           0.004762f
 
 
@@ -34,6 +34,7 @@ void Set_PhaseVoltage(float Ud, float Uq);
 void Get_PhaseVoltage(float* arr);
 void Get_ZeroElAngle();
 float Get_Angle();
+uint16_t Get_Angle_raw();
 
 void Get_CCR(uint16_t* ccr);
 

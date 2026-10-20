@@ -56,6 +56,8 @@ typedef struct
 
 extern AS5600_Status AS5600_S;
 
+// static uint16_t angle;
+
 /**** 函数 ****/
 void AS5600_Init(void);
 uint8_t AS5600_CheckDevice(void);
