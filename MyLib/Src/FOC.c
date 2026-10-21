@@ -17,7 +17,7 @@ float Udq_MAX = 3.0f;
 
 // ----- 速度环PI -----
 
-float Kp_speed = 0.2f;
+float Kp_speed = 0.08f;
 float Ki_speed = 0.0f;
 
 float speed_Error = 0.0f;
@@ -44,7 +44,8 @@ static float Ua = 0, Ub = 0, Uc = 0;
 static float Ualpha = 0, Ubeta = 0;
 
 static float Zero_elAngle = 0.0f;   //0.495475769
-static float angle = 0.0f;     //处理后的机械角度 0-2PI
+
+static float motor_angle = 0.0f;     //处理后的机械角度 0-2PI
 static uint16_t angle_raw = 0;  // 角度原始值
 static float elAngle = 0.0f;
 
@@ -54,11 +55,16 @@ static uint16_t PWM1 = 0;
 static uint16_t PWM2 = 0;
 static uint16_t PWM3 = 0;
 
-static int8_t Dir = -1;
+static int8_t Dir = 0;
 
 static float sin_elangle = 0, cos_elangle = 0;     // 电角度正余弦值
 
 static float sqrt3 = 0;
+
+// ----- 零角度获取 -----
+
+uint16_t start_raw = 0;
+uint16_t end_raw = 0;
 
 void MyFOC_PWM_Start()
 {
@@ -119,8 +125,8 @@ float Normalize_Angle(float angle)
 	return (temp >= 0 ? temp : (temp + 2*PI));
 }
 
-uint16_t recordbuf[256];
-float recordbuf1[256];
+// uint16_t recordbuf[256];
+// float recordbuf1[256];
 // void record()
 // {
 //     pointer++;
@@ -136,11 +142,11 @@ void Get_Electrical_Angle()
 
     // angle_raw = angle_raw1;
 
-    angle = angle_raw / 4096.0f * 2*PI;
+    motor_angle = angle_raw / 4096.0f * 2*PI;
 		
 	// return Dir * angle * POLE_PAIRS - Zero_elAngle;
 
-    elAngle = Normalize_Angle(Dir * angle * POLE_PAIRS - Zero_elAngle);
+    elAngle = Normalize_Angle(Dir * motor_angle * POLE_PAIRS + Zero_elAngle);
 	
     // record();//出现突变停止
 
@@ -152,7 +158,7 @@ void Get_Electrical_Angle()
 
 float Get_Angle()
 {
-	return angle;
+	return motor_angle;
 }
 
 uint16_t Get_Angle_raw()
@@ -189,110 +195,110 @@ void Set_PhaseVoltage(float Ud, float Uq)
 
 	// --- 克拉克逆变换(SPWM) ---
 
-	Ua = Ualpha + Udc*0.5f;
-	Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Udc* 0.5f;
-	Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Udc* 0.5f;
+	// Ua = Ualpha + Udc*0.5f;
+	// Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Udc* 0.5f;
+	// Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Udc* 0.5f;
 
-    Set_PWM(Ua, Ub, Uc);
+    // Set_PWM(Ua, Ub, Uc);
 
 
-	// // --- SVPWM ---
+	// --- SVPWM ---
 
-    // UABC[0] = Ubeta;
-    // UABC[1] = (sqrt3 * Ualpha - Ubeta)*0.5f;
-    // UABC[2] = (-sqrt3 * Ualpha - Ubeta)*0.5f;
+    UABC[0] = Ubeta;
+    UABC[1] = (sqrt3 * Ualpha - Ubeta)*0.5f;
+    UABC[2] = (-sqrt3 * Ualpha - Ubeta)*0.5f;
 
-    // // 扇区判断
-    // N = 0;
-    // if(UABC[0] > 0) N += 1;
-    // if(UABC[1] > 0) N += 2;
-    // if(UABC[2] > 0) N += 4;
+    // 扇区判断
+    N = 0;
+    if(UABC[0] > 0) N += 1;
+    if(UABC[1] > 0) N += 2;
+    if(UABC[2] > 0) N += 4;
 
-    // //作用时间计算
-	// XYZ[0] = SVPWM_a * UABC[0];
-    // XYZ[1] = -SVPWM_a * UABC[2];
-    // XYZ[2] = -SVPWM_a * UABC[1];
+    //作用时间计算
+	XYZ[0] = SVPWM_a * UABC[0];
+    XYZ[1] = -SVPWM_a * UABC[2];
+    XYZ[2] = -SVPWM_a * UABC[1];
 
-    // switch (N) 
-    // {
-    //     case 3:  // 扇区 I
-    //         T[0] = -XYZ[2];
-    //         T[1] = XYZ[0]; 
-    //         break;
-    //     case 1:  // 扇区 II
-    //         T[0] = XYZ[2];
-    //         T[1] = XYZ[1]; 
-    //         break;
-    //     case 5:  // 扇区 III
-    //         T[0] = XYZ[0];
-    //         T[1] = -XYZ[1]; 
-    //         break;
-    //     case 4:  // 扇区 IV
-    //         T[0] = -XYZ[0];
-    //         T[1] = XYZ[2]; 
-    //         break;
-    //     case 6:  // 扇区 V
-    //         T[0] = -XYZ[1];
-    //         T[1] = -XYZ[2]; 
-    //         break;
-    //     case 2:  // 扇区 VI
-    //         T[0] = XYZ[1];
-    //         T[1] = -XYZ[0]; 
-    //         break;
-    //     default:
-    //         T[0] = 0;
-    //         T[1] = 0;
-    //         break;
-    // }
+    switch (N) 
+    {
+        case 3:  // 扇区 I
+            T[0] = -XYZ[2];
+            T[1] = XYZ[0]; 
+            break;
+        case 1:  // 扇区 II
+            T[0] = XYZ[2];
+            T[1] = XYZ[1]; 
+            break;
+        case 5:  // 扇区 III
+            T[0] = XYZ[0];
+            T[1] = -XYZ[1]; 
+            break;
+        case 4:  // 扇区 IV
+            T[0] = -XYZ[0];
+            T[1] = XYZ[2]; 
+            break;
+        case 6:  // 扇区 V
+            T[0] = -XYZ[1];
+            T[1] = -XYZ[2]; 
+            break;
+        case 2:  // 扇区 VI
+            T[0] = XYZ[1];
+            T[1] = -XYZ[0]; 
+            break;
+        default:
+            T[0] = 0;
+            T[1] = 0;
+            break;
+    }
     
-    // //CCR计算
-    // Tabc[0] = Constrain((TPWM - T[0] - T[1])*0.25f + 0.5f, 0.0f, TPWM*0.5f);
-    // Tabc[1] = Constrain(Tabc[0] + T[0]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
-    // Tabc[2] = Constrain(Tabc[1] + T[1]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
+    //CCR计算
+    Tabc[0] = Constrain((TPWM - T[0] - T[1])*0.25f + 0.5f, 0.0f, TPWM*0.5f);
+    Tabc[1] = Constrain(Tabc[0] + T[0]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
+    Tabc[2] = Constrain(Tabc[1] + T[1]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
 
-    // switch (N) 
-    // {
-    //     case 3:  // 扇区 I
-    //         CCR[0] = Tabc[0];
-    //         CCR[1] = Tabc[1];
-    //         CCR[2] = Tabc[2];
-    //         break;
-    //     case 1:  // 扇区 II
-    //         CCR[0] = Tabc[1];
-    //         CCR[1] = Tabc[0];
-    //         CCR[2] = Tabc[2];
-    //         break;
-    //     case 5:  // 扇区 III
-    //         CCR[0] = Tabc[2];
-    //         CCR[1] = Tabc[0];
-    //         CCR[2] = Tabc[1];
-    //         break;
-    //     case 4:  // 扇区 IV
-    //         CCR[0] = Tabc[2];
-    //         CCR[1] = Tabc[1];
-    //         CCR[2] = Tabc[0];
-    //         break;
-    //     case 6:  // 扇区 V
-    //         CCR[0] = Tabc[1];
-    //         CCR[1] = Tabc[2];
-    //         CCR[2] = Tabc[0];
-    //         break;
-    //     case 2:  // 扇区 VI
-    //         CCR[0] = Tabc[0];
-    //         CCR[1] = Tabc[2];
-    //         CCR[2] = Tabc[1];
-    //         break;
-    //     default:
-    //         CCR[0] = 0;
-    //         CCR[1] = 0;
-    //         CCR[2] = 0;
-    //         break;
-    // }
+    switch (N) 
+    {
+        case 3:  // 扇区 I
+            CCR[0] = Tabc[0];
+            CCR[1] = Tabc[1];
+            CCR[2] = Tabc[2];
+            break;
+        case 1:  // 扇区 II
+            CCR[0] = Tabc[1];
+            CCR[1] = Tabc[0];
+            CCR[2] = Tabc[2];
+            break;
+        case 5:  // 扇区 III
+            CCR[0] = Tabc[2];
+            CCR[1] = Tabc[0];
+            CCR[2] = Tabc[1];
+            break;
+        case 4:  // 扇区 IV
+            CCR[0] = Tabc[2];
+            CCR[1] = Tabc[1];
+            CCR[2] = Tabc[0];
+            break;
+        case 6:  // 扇区 V
+            CCR[0] = Tabc[1];
+            CCR[1] = Tabc[2];
+            CCR[2] = Tabc[0];
+            break;
+        case 2:  // 扇区 VI
+            CCR[0] = Tabc[0];
+            CCR[1] = Tabc[2];
+            CCR[2] = Tabc[1];
+            break;
+        default:
+            CCR[0] = 0;
+            CCR[1] = 0;
+            CCR[2] = 0;
+            break;
+    }
 
 
-    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, CCR[0]);
-    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, CCR[1]);
-    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, CCR[2]);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, CCR[0]);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, CCR[1]);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, CCR[2]);
 
 }
 
@@ -313,21 +319,45 @@ void Get_PhaseVoltage(float* arr)
 	arr[2] = Uc;
 }
 
+//用于设置特定的相电压
+void Set_V(float angle, float Uq)
+{
+	Ualpha = - Uq * arm_sin_f32(angle);
+	Ubeta = Uq *arm_cos_f32(angle);
+	
+	
+
+	// --- 克拉克逆变换(SPWM) ---
+
+	Ua = Ualpha + Udc*0.5f;
+	Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Udc* 0.5f;
+	Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Udc* 0.5f;
+
+    Set_PWM(Ua, Ub, Uc);
+}
+
 void Get_ZeroElAngle()
 {
-    Delay_ms(500);
-    elAngle = 3*PI/2;
-    sin_elangle = arm_sin_f32(elAngle);
-	cos_elangle = arm_cos_f32(elAngle);
-    Delay_ms(500);
-	Set_PhaseVoltage(0, 3);
-	Delay_ms(1000);
+    Set_V(3*PI/2,3);
+	Delay_ms(800);
+    start_raw = My_AS5600_GetRAWAngleData();
 
-    Get_Electrical_Angle();
+    Set_V(0,3);
+    Delay_ms(800);
+    end_raw = My_AS5600_GetRAWAngleData();
+    Set_V(0,0);
 
-    Delay_ms(500);
-	Zero_elAngle = elAngle;
-	Set_PhaseVoltage(0, 0);
+    if (end_raw > start_raw) 
+    {
+        Dir = 1;   // 正相关
+    } 
+    else 
+    {
+        Dir = -1;  // 反相关
+    }
+
+    float start_mech_angle = ((float)start_raw / 4095.0f) * 2.0f * PI;
+    Zero_elAngle = start_mech_angle * POLE_PAIRS * Dir;
 }
 
 // void Velocity_OpenLoop(float taget_v, float Uq, float Ud)
@@ -381,5 +411,5 @@ float Speed_PI_Control(float speed_ref, float speed)
 
     float i_ref =  Kp_speed * speed_Error + Constrain(Ki_speed * speed_Error_sum,-speed_Ki_MAX,speed_Ki_MAX);
 
-    return Constrain(-i_ref,-i_ref_MAX,i_ref_MAX);
+    return Constrain(i_ref,-i_ref_MAX,i_ref_MAX);
 }

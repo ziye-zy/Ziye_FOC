@@ -405,7 +405,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // Get_Electrical_Angle();
             // printf("%f,%d\r\n",Get_Angle(),Get_Angle_raw());
 
-            printf("%f,%f,%f,%f\r\n",speed,idq_ref[1],idq[0],idq[1]);
+            printf("%f,%f,%f,%f,%f\r\n",30.0f,speed,idq_ref[1],idq[0],idq[1]);
 
             // printf("%d,%d\r\n",Time1,Time2);
 
@@ -418,7 +418,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
         speed = Speed_Calc(Get_Angle_raw());
 
-        idq_ref[1] = Speed_PI_Control(50, speed);
+        idq_ref[1] = Speed_PI_Control(30, speed);
 
 
     }
