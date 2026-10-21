@@ -332,9 +332,18 @@ uint16_t My_AS5600_GetRAWAngleData(void)
 {
     uint8_t temp[2] = {0,0};
 
-    HAL_I2C_Mem_Read(&hi2c1, 0x36 << 1, AS5600_AngleADDR_H, 1, temp, 2, 100);
+    HAL_I2C_Mem_Read(&hi2c1, 0x36 << 1, AS5600_RAWAngleADDR_H, 1, temp, 2, 100);
     uint16_t my_angle = (temp[0] << 8) | temp[1];
-    
+
     return my_angle;
 
 }
+
+// void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
+// {
+//     if (hi2c->Instance == I2C1) {
+//         // 合并高字节和低字节，得到12位角度值（高4位无效，可忽略）
+//         as5600_angle = ((uint16_t)as5600_rx_buf[0] << 8) | as5600_rx_buf[1];
+//         as5600_data_ready = 1; // 通知主循环或控制中断：新数据已就绪
+//     }
+// }

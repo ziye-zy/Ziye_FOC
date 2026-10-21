@@ -75,7 +75,7 @@ float ialpha_beta[2] = {0,0};
 
 float idq[2] = {0,0};
 
-float idq_ref[2] = {0.0f,0.100f};
+float idq_ref[2] = {0.0f,0.0f};
 
 // --标志位--
 
@@ -86,7 +86,6 @@ uint8_t i_curb_flag = 0;    //电流环控制标志位
 
 uint32_t ia_zero = 0;
 uint32_t ib_zero = 0;
-
 uint8_t i_count = 0;
 
 // -- 滤波器 --
@@ -94,6 +93,25 @@ uint8_t i_count = 0;
 int16_t iabc_filt[3] = {0.0f, 0.0f, 0.0f};
 
 uint8_t filt_init = 0;
+
+// ----- 速度环 -----
+
+#define SPEED_SAMPLE_HZ  1000.0f       // 速度环频率
+#define SPEED_DT         (1.0f / SPEED_SAMPLE_HZ)   //时间常数
+#define SPEED_LPF_ALPHA  0.2f          // 低通滤波系数，越小越平滑
+
+uint16_t prev_angle = 0;
+float    speed_filt = 0.0f;
+uint8_t  first_sample = 1;
+
+float speed = 0.0f;
+
+uint32_t now = 0;
+uint32_t last = 0;
+uint32_t now1 = 0;
+uint32_t Time = 0;
+uint32_t Time1 = 0;
+uint32_t Time2 = 0;
 
 /* USER CODE END PV */
 
@@ -106,45 +124,17 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-#define AS5600_I2C_ADDR    (0x36 << 1)  // 7位地址0x36左移一位，HAL库要求8位格式[reference:5]
-#define AS5600_REG_ANGLE   0x0E         // ANGLE寄存器高字节地址
-
-// extern I2C_HandleTypeDef hi2c1;         // 假设使用I2C1
-
-uint8_t  as5600_rx_buf[2];              // DMA接收缓冲区
-volatile uint16_t as5600_angle = 0;     // 解析后的12位角度值（0~4095）
-volatile uint8_t  as5600_data_ready = 0;// 数据就绪标志
-
-/**
- * @brief  启动一次AS5600角度值的DMA读取（非阻塞）
- * @retval HAL status
- */
-void AS5600_ReadAngle_DMA(void)
-{
-    // Mem_Read_DMA: 从设备地址 AS5600_I2C_ADDR 的 AS5600_REG_ANGLE 寄存器开始，
-    // 读取 2 个字节到 as5600_rx_buf，使用 I2C 内存读取的 DMA 模式
-    HAL_I2C_Mem_Read_DMA(&hi2c1, 
-                                AS5600_I2C_ADDR, 
-                                AS5600_REG_ANGLE, 
-                                I2C_MEMADD_SIZE_8BIT, // AS5600寄存器地址为8位
-                                as5600_rx_buf, 
-                                2);
-}
-
-/**
- * @brief  I2C内存读取DMA完成回调（重写HAL弱函数）
- */
-void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
-{
-    if (hi2c->Instance == I2C1) {
-        // 合并高字节和低字节，得到12位角度值（高4位无效，可忽略）
-        as5600_angle = ((uint16_t)as5600_rx_buf[0] << 8) | as5600_rx_buf[1];
-        as5600_data_ready = 1; // 通知主循环或控制中断：新数据已就绪
-    }
-}
 
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
     if (hadc->Instance == ADC1) {
+
+        now1 = __HAL_TIM_GET_COUNTER(&htim6);
+
+        now = __HAL_TIM_GET_COUNTER(&htim6);
+
+        Time1 = now - last;
+
+        last = now;
 
         if (i_curb_flag == 1) //电流偏置量获取
         {
@@ -179,10 +169,16 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
 
             Get_Electrical_Angle();
 
-            // Get_idiq(iabc_raw, ialpha_beta, idq);
+            Get_idiq(iabc_raw, ialpha_beta, idq);
+            Current_PI_Control(idq_ref, idq);
 
-            // Current_PI_Control(idq_ref, idq);
-            Set_PhaseVoltage(Ud, Uq);
+            Time = __HAL_TIM_GET_COUNTER(&htim6) - now1;
+
+
+
+            Time2 ++;
+
+            // Set_PhaseVoltage(Ud, Uq);
         }
     }
 }
@@ -234,8 +230,10 @@ int main(void)
   MX_ADC1_Init();
   MX_I2C1_Init();
   MX_TIM4_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
 
+    HAL_TIM_Base_Start(&htim6);
 
     AS5600_Init();
 
@@ -247,7 +245,8 @@ int main(void)
 
     Get_i_zero();       //获取电流偏置
 
-    HAL_TIM_Base_Start_IT(&htim2);  // 开启定时器2
+    HAL_TIM_Base_Start_IT(&htim2);  // 开启定时器2 用于串口调试
+    HAL_TIM_Base_Start_IT(&htim4);  // 开启定时器4 用于速度环计算
 
 
 
@@ -346,6 +345,41 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+
+
+// 计算两个角度之间的有符号差值，范围限制在 [-2048, 2047]
+static inline int32_t angle_diff(uint16_t new_angle, uint16_t old_angle)
+{
+    int32_t diff = (int32_t)new_angle - (int32_t)old_angle;
+    if (diff > 2048) {
+        diff -= 4096;
+    } else if (diff < -2048) {
+        diff += 4096;
+    }
+    return diff;
+}
+
+float Speed_Calc(uint16_t new_angle)
+{
+    if (first_sample) {
+        prev_angle = new_angle;
+        first_sample = 0;
+        return 0.0f;
+    }
+    
+    // 过零处理
+    int32_t d_angle = angle_diff(new_angle, prev_angle);
+    prev_angle = new_angle;
+    
+    // 差分速度 (r/s)
+    float speed_raw = ((float)d_angle / 4096.0f)  * 3.1415926f / SPEED_DT;
+    
+    // 一阶低通滤波
+    speed_filt = SPEED_LPF_ALPHA * speed_raw + (1.0f - SPEED_LPF_ALPHA) * speed_filt;
+    
+    return speed_filt;
+}
+
 uint16_t T2Count1 = 0;
 uint16_t FOC_Time = 1;
 
@@ -368,23 +402,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // printf("%d,%d,%d\r\n",ccr[0],ccr[1],ccr[2]);
             // Get_Angle();
             // printf("%f,%f\r\n",idq[0],idq[1]);
-            Get_Electrical_Angle();
-            // if (as5600_data_ready) {
-            //     as5600_data_ready = 0;          // 清除标志
-                
-            //     // 此处使用 as5600_angle 进行角度换算或FOC计算
-            //     // 例如: float angle_rad = (as5600_angle / 4096.0f) * 2.0f * 3.1415926f;
-            //     Get_Electrical_Angle();
-            //     // 重新启动下一次DMA读取（Non-blocking）
-            //     AS5600_ReadAngle_DMA(); 
-            // }
-            printf("%f,%d\r\n",Get_Angle(),Get_Angle_raw());
+            // Get_Electrical_Angle();
+            // printf("%f,%d\r\n",Get_Angle(),Get_Angle_raw());
+
+            printf("%f,%f,%f,%f\r\n",speed,idq_ref[1],idq[0],idq[1]);
+
+            // printf("%d,%d\r\n",Time1,Time2);
 
             // printf("%f,%f\r\n",ialpha_beta[0],ialpha_beta[1]);
 
             // printf("%d,%d\r\n",ia_zero,ib_zero);
 		}
 	}
+    if (htim->Instance == TIM4)
+    {
+        speed = Speed_Calc(Get_Angle_raw());
+
+        idq_ref[1] = Speed_PI_Control(50, speed);
+
+
+    }
 }
 
 
