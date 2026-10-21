@@ -106,12 +106,24 @@ uint8_t  first_sample = 1;
 
 float speed = 0.0f;
 
-uint32_t now = 0;
-uint32_t last = 0;
-uint32_t now1 = 0;
-uint32_t Time = 0;
-uint32_t Time1 = 0;
-uint32_t Time2 = 0;
+// ----- 性能分析 -----
+
+//可用时间
+uint32_t ref_now = 0;
+uint32_t ref_last = 0;
+uint32_t ref_Time = 0;  
+
+//总时间
+uint32_t all_now = 0;   
+uint32_t all_Time = 0;
+
+//角度获取时间
+uint32_t angle_now = 0;
+uint32_t angle_Time = 0; 
+
+//SVPWM/SPWM时间
+uint32_t SVPWM_now = 0;
+uint32_t SVPWM_Time = 0;
 
 /* USER CODE END PV */
 
@@ -128,13 +140,12 @@ void SystemClock_Config(void);
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
     if (hadc->Instance == ADC1) {
 
-        now1 = __HAL_TIM_GET_COUNTER(&htim6);
+        // 电流环时间
+        all_now = __HAL_TIM_GET_COUNTER(&htim6);
 
-        now = __HAL_TIM_GET_COUNTER(&htim6);
-
-        Time1 = now - last;
-
-        last = now;
+        ref_now = __HAL_TIM_GET_COUNTER(&htim6);
+        ref_Time = ref_now - ref_last;  //可用时间
+        ref_last = ref_now;
 
         if (i_curb_flag == 1) //电流偏置量获取
         {
@@ -167,16 +178,22 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
             //     iabc_filt[2] = -iabc_filt[0] - iabc_filt[1];
             // }
 
-            Get_Electrical_Angle();
+            angle_now = __HAL_TIM_GET_COUNTER(&htim6);
 
-            Get_idiq(iabc_raw, ialpha_beta, idq);
-            Current_PI_Control(idq_ref, idq);
+            Get_Electrical_Angle(); //电角度获取 耗时155ns,需优化
 
-            Time = __HAL_TIM_GET_COUNTER(&htim6) - now1;
+            angle_Time = __HAL_TIM_GET_COUNTER(&htim6) - angle_now;
 
+            SVPWM_now = __HAL_TIM_GET_COUNTER(&htim6);
 
+            Get_idiq(iabc_raw, ialpha_beta, idq);   // idq计算
 
-            Time2 ++;
+            Current_PI_Control(idq_ref, idq);   //电流PI控制+SVPWM计算
+
+            SVPWM_Time = __HAL_TIM_GET_COUNTER(&htim6) - SVPWM_now;
+
+            all_Time = __HAL_TIM_GET_COUNTER(&htim6) - all_now; //总耗时160ns
+
 
             // Set_PhaseVoltage(Ud, Uq);
         }
