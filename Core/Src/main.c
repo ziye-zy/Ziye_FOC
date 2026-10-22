@@ -137,7 +137,7 @@ int32_t get_angle_Time = 0;
 
 uint16_t Motor_raw_angle = 0;
 
-uint16_t Motor_angle_Time = 0;//角度获取时TIM6计数值
+int32_t Motor_angle_Time = 0;//角度获取时TIM6计数值
 
 /* USER CODE END PV */
 
@@ -508,7 +508,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             get_angle_Time += 65535;
         } 
 
-        Motor_angle_Time = __HAL_TIM_GET_COUNTER(&htim6) - get_angle_Time;
+        Motor_angle_Time = (int32_t)__HAL_TIM_GET_COUNTER(&htim6) - get_angle_Time;
+
+        if (Motor_angle_Time < 0)
+        {
+            Motor_angle_Time += 65535;
+        }
 
         // Motor_angle_Time = __HAL_TIM_GET_COUNTER(&htim6);
 

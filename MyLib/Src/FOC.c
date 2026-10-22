@@ -170,10 +170,10 @@ void Get_Electrical_Angle()
 }
 
 //电角度预测
-void Pre_Electrical_Angle(uint16_t motor_raw_angle, uint16_t time, float motor_speed)
+void Pre_Electrical_Angle(uint16_t motor_raw_angle, int32_t time, float motor_speed)
 {
     uint16_t now_time = __HAL_TIM_GET_COUNTER(&htim6);
-	int32_t d_time = (int32_t)now_time - (int32_t)time;
+	int32_t d_time = (int32_t)now_time - time;
 
     if (d_time < 0)
     {
@@ -389,7 +389,14 @@ void Get_ZeroElAngle()
     end_raw = My_AS5600_GetRAWAngleData();
     Set_V(0,0);
 
-    if (end_raw > start_raw) 
+    int32_t a_diff = (int32_t)end_raw - (int32_t)start_raw;
+    if (a_diff > 2048) {
+        a_diff -= 4096;
+    } else if (a_diff < -2048) {
+        a_diff += 4096;
+    }
+
+    if (a_diff > 0) 
     {
         Dir = 1;   // 正相关
     } 
@@ -400,7 +407,7 @@ void Get_ZeroElAngle()
 
     float start_mech_angle = ((float)start_raw / 4095.0f) * 2.0f * PI;
 
-    Zero_elAngle = start_mech_angle * POLE_PAIRS * Dir;
+    Zero_elAngle = Normalize_Angle(start_mech_angle * POLE_PAIRS * Dir);
 
     // Zero_elAngle = Normalize_Angle(start_mech_angle * POLE_PAIRS * Dir);
 }
