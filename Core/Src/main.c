@@ -441,7 +441,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		if (T2Count1 >= tx_Time)    //串口调式输出
 		{
 			T2Count1 = 0;
-            // T2Count2 ++;
+            T2Count2 ++;
 			// Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
             // Get_PhaseVoltage(U);
             // printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
@@ -463,7 +463,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
             // printf("%d,%d\r\n",ia_zero,ib_zero);
 
-            if (T2Count2 >= 200)
+            if (T2Count2 >= 500)
             {
                 T2Count2 = 0;
 
@@ -471,7 +471,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 {
                     Motor_speed_ref += 10.0f;
 
-                    if (Motor_speed_ref > 80.0f)
+                    if (Motor_speed_ref > 150.0f)
                     {
                         speed_flag = 1;
                     }
@@ -480,7 +480,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 {
                     Motor_speed_ref -= 10.0f;
 
-                    if (Motor_speed_ref < -80.0f)
+                    if (Motor_speed_ref <= -120.0f)
                     {
                         speed_flag = 0;
                     }

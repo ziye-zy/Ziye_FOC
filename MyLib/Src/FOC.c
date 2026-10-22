@@ -4,7 +4,10 @@
 
 // -- 电流环PI --
 
-float Kp_I = 0.001f;
+// float Kp_I = 0.002f;
+// float Ki_I = 0.15f;
+
+float Kp_I = 0.002f;
 float Ki_I = 0.15f;
 
 float I_Error[2] = {0.0f, 0.0f};
@@ -12,14 +15,14 @@ float I_Error_sum[2] = {0.0f, 0.0f};
 
 float Udq_ref[2] = {0.0f, 0.0f};
 
-float Ki_MAX = 5.5f;
+float Ki_MAX = 5.0f;
 float Udq_MAX = 5.5f;
 
 // ----- 速度环PI -----
 
 // 性能还行
 float Kp_speed = 0.01f;  
-float Ki_speed = 0.0002f;
+float Ki_speed = 0.00005f;
 
 // float Kp_speed = 0.005f;
 // float Ki_speed = 0.0002f;
@@ -27,7 +30,7 @@ float Ki_speed = 0.0002f;
 float speed_Error = 0.0f;
 float speed_Error_sum = 0.0f;
 
-float speed_Ki_MAX = 1.5f;
+float speed_Ki_MAX = 1.0f;
 float i_ref_MAX = 1.5f;
 
 // -- SVPWM --
@@ -200,9 +203,9 @@ void Set_PWM(float Ua, float Ub, float Uc)
 {
 	// MyFOC_PWM_Start();
 	
-	PWM1 = TPWM * Constrain(Ua/Udc,0.0f,1.0f);
-	PWM2 = TPWM * Constrain(Ub/Udc,0.0f,1.0f);
-	PWM3 = TPWM * Constrain(Uc/Udc,0.0f,1.0f);
+	PWM1 = TPWM*0.5 * Constrain(Ua/Udc,0.0f,1.0f);
+	PWM2 = TPWM*0.5 * Constrain(Ub/Udc,0.0f,1.0f);
+	PWM3 = TPWM*0.5 * Constrain(Uc/Udc,0.0f,1.0f);
 	
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWM1);
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWM2);
@@ -225,110 +228,110 @@ void Set_PhaseVoltage(float Ud, float Uq)
 
 	// --- 克拉克逆变换(SPWM) ---
 
-	Ua = Ualpha + Udc*0.5f;
-	Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Udc* 0.5f;
-	Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Udc* 0.5f;
+	// Ua = Ualpha + Udc*0.5f;
+	// Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Udc* 0.5f;
+	// Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Udc* 0.5f;
 
-    Set_PWM(Ua, Ub, Uc);
+    // Set_PWM(Ua, Ub, Uc);
 
 
-	// // --- SVPWM ---
+	// --- SVPWM ---
 
-    // UABC[0] = Ubeta;
-    // UABC[1] = (sqrt3 * Ualpha - Ubeta)*0.5f;
-    // UABC[2] = (-sqrt3 * Ualpha - Ubeta)*0.5f;
+    UABC[0] = Ubeta;
+    UABC[1] = (sqrt3 * Ualpha - Ubeta)*0.5f;
+    UABC[2] = (-sqrt3 * Ualpha - Ubeta)*0.5f;
 
-    // // 扇区判断
-    // N = 0;
-    // if(UABC[0] > 0) N += 1;
-    // if(UABC[1] > 0) N += 2;
-    // if(UABC[2] > 0) N += 4;
+    // 扇区判断
+    N = 0;
+    if(UABC[0] > 0) N += 1;
+    if(UABC[1] > 0) N += 2;
+    if(UABC[2] > 0) N += 4;
 
-    // //作用时间计算
-	// XYZ[0] = SVPWM_a * UABC[0];
-    // XYZ[1] = -SVPWM_a * UABC[2];
-    // XYZ[2] = -SVPWM_a * UABC[1];
+    //作用时间计算
+	XYZ[0] = SVPWM_a * UABC[0];
+    XYZ[1] = -SVPWM_a * UABC[2];
+    XYZ[2] = -SVPWM_a * UABC[1];
 
-    // switch (N) 
-    // {
-    //     case 3:  // 扇区 I
-    //         T[0] = -XYZ[2];
-    //         T[1] = XYZ[0]; 
-    //         break;
-    //     case 1:  // 扇区 II
-    //         T[0] = XYZ[2];
-    //         T[1] = XYZ[1]; 
-    //         break;
-    //     case 5:  // 扇区 III
-    //         T[0] = XYZ[0];
-    //         T[1] = -XYZ[1]; 
-    //         break;
-    //     case 4:  // 扇区 IV
-    //         T[0] = -XYZ[0];
-    //         T[1] = XYZ[2]; 
-    //         break;
-    //     case 6:  // 扇区 V
-    //         T[0] = -XYZ[1];
-    //         T[1] = -XYZ[2]; 
-    //         break;
-    //     case 2:  // 扇区 VI
-    //         T[0] = XYZ[1];
-    //         T[1] = -XYZ[0]; 
-    //         break;
-    //     default:
-    //         T[0] = 0;
-    //         T[1] = 0;
-    //         break;
-    // }
+    switch (N) 
+    {
+        case 3:  // 扇区 I
+            T[0] = -XYZ[2];
+            T[1] = XYZ[0]; 
+            break;
+        case 1:  // 扇区 II
+            T[0] = XYZ[2];
+            T[1] = XYZ[1]; 
+            break;
+        case 5:  // 扇区 III
+            T[0] = XYZ[0];
+            T[1] = -XYZ[1]; 
+            break;
+        case 4:  // 扇区 IV
+            T[0] = -XYZ[0];
+            T[1] = XYZ[2]; 
+            break;
+        case 6:  // 扇区 V
+            T[0] = -XYZ[1];
+            T[1] = -XYZ[2]; 
+            break;
+        case 2:  // 扇区 VI
+            T[0] = XYZ[1];
+            T[1] = -XYZ[0]; 
+            break;
+        default:
+            T[0] = 0;
+            T[1] = 0;
+            break;
+    }
     
-    // //CCR计算
-    // Tabc[0] = Constrain((TPWM - T[0] - T[1])*0.25f + 0.5f, 0.0f, TPWM*0.5f);
-    // Tabc[1] = Constrain(Tabc[0] + T[0]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
-    // Tabc[2] = Constrain(Tabc[1] + T[1]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
+    //CCR计算
+    Tabc[0] = Constrain((TPWM - T[0] - T[1])*0.25f + 0.5f, 0.0f, TPWM*0.5f);
+    Tabc[1] = Constrain(Tabc[0] + T[0]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
+    Tabc[2] = Constrain(Tabc[1] + T[1]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
 
-    // switch (N) 
-    // {
-    //     case 3:  // 扇区 I
-    //         CCR[0] = Tabc[0];
-    //         CCR[1] = Tabc[1];
-    //         CCR[2] = Tabc[2];
-    //         break;
-    //     case 1:  // 扇区 II
-    //         CCR[0] = Tabc[1];
-    //         CCR[1] = Tabc[0];
-    //         CCR[2] = Tabc[2];
-    //         break;
-    //     case 5:  // 扇区 III
-    //         CCR[0] = Tabc[2];
-    //         CCR[1] = Tabc[0];
-    //         CCR[2] = Tabc[1];
-    //         break;
-    //     case 4:  // 扇区 IV
-    //         CCR[0] = Tabc[2];
-    //         CCR[1] = Tabc[1];
-    //         CCR[2] = Tabc[0];
-    //         break;
-    //     case 6:  // 扇区 V
-    //         CCR[0] = Tabc[1];
-    //         CCR[1] = Tabc[2];
-    //         CCR[2] = Tabc[0];
-    //         break;
-    //     case 2:  // 扇区 VI
-    //         CCR[0] = Tabc[0];
-    //         CCR[1] = Tabc[2];
-    //         CCR[2] = Tabc[1];
-    //         break;
-    //     default:
-    //         CCR[0] = 0;
-    //         CCR[1] = 0;
-    //         CCR[2] = 0;
-    //         break;
-    // }
+    switch (N) 
+    {
+        case 3:  // 扇区 I
+            CCR[0] = Tabc[0];
+            CCR[1] = Tabc[1];
+            CCR[2] = Tabc[2];
+            break;
+        case 1:  // 扇区 II
+            CCR[0] = Tabc[1];
+            CCR[1] = Tabc[0];
+            CCR[2] = Tabc[2];
+            break;
+        case 5:  // 扇区 III
+            CCR[0] = Tabc[2];
+            CCR[1] = Tabc[0];
+            CCR[2] = Tabc[1];
+            break;
+        case 4:  // 扇区 IV
+            CCR[0] = Tabc[2];
+            CCR[1] = Tabc[1];
+            CCR[2] = Tabc[0];
+            break;
+        case 6:  // 扇区 V
+            CCR[0] = Tabc[1];
+            CCR[1] = Tabc[2];
+            CCR[2] = Tabc[0];
+            break;
+        case 2:  // 扇区 VI
+            CCR[0] = Tabc[0];
+            CCR[1] = Tabc[2];
+            CCR[2] = Tabc[1];
+            break;
+        default:
+            CCR[0] = 0;
+            CCR[1] = 0;
+            CCR[2] = 0;
+            break;
+    }
 
 
-    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, CCR[0]);
-    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, CCR[1]);
-    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, CCR[2]);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, TPWM*0.5-CCR[0]);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, TPWM*0.5-CCR[1]);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, TPWM*0.5-CCR[2]);
 
 }
 
