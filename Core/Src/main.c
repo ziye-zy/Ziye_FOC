@@ -63,7 +63,7 @@
 
 // float a = 3.14f;
 
-float Uq = 0, Ud = 0;
+float Uq = 2, Ud = 0;
 float U[3] = {0,0,0};   //三相电压值存储
 
 uint16_t ccr[3] = {0,0,0};
@@ -274,12 +274,17 @@ int main(void)
 	
 	Get_ZeroElAngle();  //获取零角度
 	
+    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
+
     HAL_ADCEx_InjectedStart_IT(&hadc1); // 开启ADC1的注入通道
 
     Get_i_zero();       //获取电流偏置
 
     HAL_TIM_Base_Start_IT(&htim2);  // 开启定时器2 用于串口调试
     HAL_TIM_Base_Start_IT(&htim4);  // 开启定时器4 用于速度环计算
+
 
 
 
@@ -441,7 +446,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		if (T2Count1 >= tx_Time)    //串口调式输出
 		{
 			T2Count1 = 0;
-            T2Count2 ++;
+            // T2Count2 ++;
 			// Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
             // Get_PhaseVoltage(U);
             // printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
@@ -449,7 +454,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // printf("%d,%d,%d\r\n",iabc_raw[0],iabc_raw[1],iabc_raw[2]);
 
             // Get_CCR(ccr);
-            // printf("%d,%d,%d\r\n",ccr[0],ccr[1],ccr[2]);
+            // printf("%d,%d,%d,%d,%d,%d,%d,%f\r\n",ccr[0],ccr[1],ccr[2],iabc_raw[0],iabc_raw[1],iabc_raw[2],Motor_raw_angle,Get_elAngle());
             // Get_Angle();
             // printf("%f,%f\r\n",idq[0],idq[1]);
             // Get_Electrical_Angle();
@@ -504,6 +509,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         } 
 
         Motor_angle_Time = __HAL_TIM_GET_COUNTER(&htim6) - get_angle_Time;
+
+        // Motor_angle_Time = __HAL_TIM_GET_COUNTER(&htim6);
 
         Motor_speed = Speed_Calc(Motor_raw_angle);
 

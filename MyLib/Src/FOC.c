@@ -21,11 +21,16 @@ float Udq_MAX = 5.5f;
 // ----- 速度环PI -----
 
 // 性能还行
-float Kp_speed = 0.01f;  
-float Ki_speed = 0.00005f;
+// float Kp_speed = 0.01f;  
+// float Ki_speed = 0.00005f;
 
 // float Kp_speed = 0.005f;
 // float Ki_speed = 0.0002f;
+
+//公式计算得出
+float Kp_speed = 0.0414f;  
+float Ki_speed = 0.00016558f;
+
 
 float speed_Error = 0.0f;
 float speed_Error_sum = 0.0f;
@@ -50,7 +55,7 @@ static float Udc = 12.0f;
 static float Ua = 0, Ub = 0, Uc = 0;
 static float Ualpha = 0, Ubeta = 0;
 
-static float Zero_elAngle = 0.0f;   //0.495475769
+static float Zero_elAngle = 0.0f;   //
 
 static float motor_angle = 0.0f;     //处理后的机械角度 0-2PI
 static uint16_t angle_raw = 0;  // 角度原始值
@@ -97,8 +102,8 @@ void MyFOC_Init()
     // Kp_I = Ls * 0.25f;
     // Ki_I = Rs * 0.25f;
 
-    // Kp_I = Ls * 0.5f;
-    // Ki_I = Rs * 0.5f;
+    Kp_I = Ls * 0.5f;
+    Ki_I = Rs * 0.5f;
 
     // Kp_I = Ls * 0.1f;
     // Ki_I = Rs * 0.1f;
@@ -189,6 +194,10 @@ void Pre_Electrical_Angle(uint16_t motor_raw_angle, uint16_t time, float motor_s
 	cos_elangle = arm_cos_f32(elAngle);
 }
 
+float Get_elAngle()
+{
+	return elAngle;
+}
 float Get_Angle()
 {
 	return motor_angle;
@@ -390,7 +399,10 @@ void Get_ZeroElAngle()
     }
 
     float start_mech_angle = ((float)start_raw / 4095.0f) * 2.0f * PI;
+
     Zero_elAngle = start_mech_angle * POLE_PAIRS * Dir;
+
+    // Zero_elAngle = Normalize_Angle(start_mech_angle * POLE_PAIRS * Dir);
 }
 
 // void Velocity_OpenLoop(float taget_v, float Uq, float Ud)

@@ -47,6 +47,8 @@ void Current_PI_Control(float* idq_ref, float* idq);
 
 float Speed_PI_Control(float speed_ref, float speed);
 
+float Get_elAngle();
+
 // void Velocity_OpenLoop(float taget_v, float Uq, float Ud);
 
 #endif
