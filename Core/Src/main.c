@@ -45,9 +45,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define FC_HZ      6000.0f
-#define TS_SEC     0.00005f   // 50us
-#define ALPHA      0.653f      // (2.0f * 3.1415926f * FC_HZ * TS_SEC / (1.0f + 2.0f * 3.1415926f * FC_HZ * TS_SEC))
+// #define FC_HZ      6000.0f
+// #define TS_SEC     0.00005f   // 50us
+// #define ALPHA      0.653f      // (2.0f * 3.1415926f * FC_HZ * TS_SEC / (1.0f + 2.0f * 3.1415926f * FC_HZ * TS_SEC))
 // ALPHA ≈ 0.653
 
 /* USER CODE END PD */
@@ -63,7 +63,7 @@
 
 // float a = 3.14f;
 
-float Uq = 1, Ud = 0;
+float Uq = 0, Ud = 0;
 float U[3] = {0,0,0};   //三相电压值存储
 
 uint16_t ccr[3] = {0,0,0};
@@ -90,40 +90,54 @@ uint8_t i_count = 0;
 
 // -- 滤波器 --
 
-int16_t iabc_filt[3] = {0.0f, 0.0f, 0.0f};
+// int16_t iabc_filt[3] = {0.0f, 0.0f, 0.0f};
 
-uint8_t filt_init = 0;
+// uint8_t filt_init = 0;
 
 // ----- 速度环 -----
 
-#define SPEED_SAMPLE_HZ  1000.0f       // 速度环频率
+#define SPEED_SAMPLE_HZ  2000.0f       // 速度环频率
 #define SPEED_DT         (1.0f / SPEED_SAMPLE_HZ)   //时间常数
 #define SPEED_LPF_ALPHA  0.2f          // 低通滤波系数，越小越平滑
 
 uint16_t prev_angle = 0;
-float    speed_filt = 0.0f;
+
 uint8_t  first_sample = 1;
 
-float speed = 0.0f;
+float speed_filt = 0.0f;
+
+float Motor_speed = 0.0f;   //rad/s
+
+float Motor_speed_ref = 30.0f; //rad/s
 
 // ----- 性能分析 -----
 
 //可用时间
-uint32_t ref_now = 0;
-uint32_t ref_last = 0;
-uint32_t ref_Time = 0;  
+uint16_t ref_now = 0;
+uint16_t ref_last = 0;
+uint16_t ref_Time = 0;  
 
 //总时间
-uint32_t all_now = 0;   
-uint32_t all_Time = 0;
+uint16_t all_now = 0;   
+uint16_t all_Time = 0;
 
-//角度获取时间
-uint32_t angle_now = 0;
-uint32_t angle_Time = 0; 
+//角度预测时间
+uint16_t angle_now = 0;
+uint16_t angle_Time = 0; 
 
 //SVPWM/SPWM时间
-uint32_t SVPWM_now = 0;
-uint32_t SVPWM_Time = 0;
+uint16_t SVPWM_now = 0;
+uint16_t SVPWM_Time = 0;
+
+//角度获取时间
+int32_t get_angle_Time = 0;
+
+
+//角度读取
+
+uint16_t Motor_raw_angle = 0;
+
+uint16_t Motor_angle_Time = 0;//角度获取时TIM6计数值
 
 /* USER CODE END PV */
 
@@ -180,7 +194,9 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
 
             angle_now = __HAL_TIM_GET_COUNTER(&htim6);
 
-            Get_Electrical_Angle(); //电角度获取 耗时155ns,需优化
+            // Get_Electrical_Angle(); //电角度获取 耗时155us,需优化
+
+            Pre_Electrical_Angle(Motor_raw_angle, Motor_angle_Time, Motor_speed);
 
             angle_Time = __HAL_TIM_GET_COUNTER(&htim6) - angle_now;
 
@@ -192,7 +208,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
 
             SVPWM_Time = __HAL_TIM_GET_COUNTER(&htim6) - SVPWM_now;
 
-            all_Time = __HAL_TIM_GET_COUNTER(&htim6) - all_now; //总耗时160ns
+            all_Time = __HAL_TIM_GET_COUNTER(&htim6) - all_now; //总耗时160us
 
 
             // Set_PhaseVoltage(Ud, Uq);
@@ -274,6 +290,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+    // Motor_speed_ref = 30.0;
+    // Delay_ms(2000);
+    // Motor_speed_ref = 60.0;
+    // Delay_ms(2000);
+    // Motor_speed_ref = 80.0;
+    // Delay_ms(2000);
+    // Motor_speed_ref = 100.0;
+    // Delay_ms(2000);
 
     // printf("%d\r\n",My_AS5600_GetRAWAngleData());
     // Delay_ms(100);
@@ -388,8 +413,8 @@ float Speed_Calc(uint16_t new_angle)
     int32_t d_angle = angle_diff(new_angle, prev_angle);
     prev_angle = new_angle;
     
-    // 差分速度 (r/s)
-    float speed_raw = ((float)d_angle / 4096.0f)  * 3.1415926f / SPEED_DT;
+    // 差分速度 (rad/s)
+    float speed_raw = ((float)d_angle / 4096.0f) * 2.0f * 3.1415926f / SPEED_DT;
     
     // 一阶低通滤波
     speed_filt = SPEED_LPF_ALPHA * speed_raw + (1.0f - SPEED_LPF_ALPHA) * speed_filt;
@@ -398,7 +423,9 @@ float Speed_Calc(uint16_t new_angle)
 }
 
 uint16_t T2Count1 = 0;
-uint16_t FOC_Time = 1;
+uint16_t T2Count2 = 0;
+uint16_t tx_Time = 2;
+uint8_t speed_flag = 0;
 
 //定时器中断回调函数
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -406,9 +433,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if (htim->Instance == TIM2)
 	{
 		T2Count1++;
-		if (T2Count1 >= FOC_Time)
+        
+        //获取电机角度原始值，并记录时间
+        // Motor_raw_angle = My_AS5600_GetRAWAngleData();
+        // Motor_angle_Time = __HAL_TIM_GET_COUNTER(&htim6);
+
+		if (T2Count1 >= tx_Time)    //串口调式输出
 		{
 			T2Count1 = 0;
+            // T2Count2 ++;
 			// Set_PhaseVoltage(Uq, Ud, Get_Electrical_Angle());
             // Get_PhaseVoltage(U);
             // printf("%f,%f,%f\r\n",U[0],U[1],U[2]);
@@ -422,22 +455,59 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // Get_Electrical_Angle();
             // printf("%f,%d\r\n",Get_Angle(),Get_Angle_raw());
 
-            printf("%f,%f,%f,%f,%f\r\n",30.0f,speed,idq_ref[1],idq[0],idq[1]);
+            printf("%f,%f,%f,%f,%f\r\n",Motor_speed_ref,Motor_speed,idq_ref[1],idq[0],idq[1]);
 
             // printf("%d,%d\r\n",Time1,Time2);
 
             // printf("%f,%f\r\n",ialpha_beta[0],ialpha_beta[1]);
 
             // printf("%d,%d\r\n",ia_zero,ib_zero);
+
+            if (T2Count2 >= 200)
+            {
+                T2Count2 = 0;
+
+                if (speed_flag == 0)
+                {
+                    Motor_speed_ref += 10.0f;
+
+                    if (Motor_speed_ref > 80.0f)
+                    {
+                        speed_flag = 1;
+                    }
+                }
+                if (speed_flag == 1)
+                {
+                    Motor_speed_ref -= 10.0f;
+
+                    if (Motor_speed_ref < -80.0f)
+                    {
+                        speed_flag = 0;
+                    }
+                }
+            }
 		}
 	}
     if (htim->Instance == TIM4)
     {
-        speed = Speed_Calc(Get_Angle_raw());
+        uint16_t get_angle_last = __HAL_TIM_GET_COUNTER(&htim6);
 
-        idq_ref[1] = Speed_PI_Control(30, speed);
+        Motor_raw_angle = My_AS5600_GetRAWAngleData();
 
+        uint16_t get_angle_now = __HAL_TIM_GET_COUNTER(&htim6);
 
+        get_angle_Time = (int32_t)get_angle_now - (int32_t)get_angle_last;
+
+        if (get_angle_Time < 0)
+        {
+            get_angle_Time += 65535;
+        } 
+
+        Motor_angle_Time = __HAL_TIM_GET_COUNTER(&htim6) - get_angle_Time;
+
+        Motor_speed = Speed_Calc(Motor_raw_angle);
+
+        idq_ref[1] = Speed_PI_Control(Motor_speed_ref, Motor_speed);
     }
 }
 

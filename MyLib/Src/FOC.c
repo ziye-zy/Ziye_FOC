@@ -4,27 +4,31 @@
 
 // -- 电流环PI --
 
-float Kp_I = 0.0f;
-float Ki_I = 0.0f;
+float Kp_I = 0.001f;
+float Ki_I = 0.15f;
 
 float I_Error[2] = {0.0f, 0.0f};
 float I_Error_sum[2] = {0.0f, 0.0f};
 
 float Udq_ref[2] = {0.0f, 0.0f};
 
-float Ki_MAX = 3.0f;
-float Udq_MAX = 3.0f;
+float Ki_MAX = 5.5f;
+float Udq_MAX = 5.5f;
 
 // ----- 速度环PI -----
 
-float Kp_speed = 0.08f;
-float Ki_speed = 0.0f;
+// 性能还行
+float Kp_speed = 0.01f;  
+float Ki_speed = 0.0002f;
+
+// float Kp_speed = 0.005f;
+// float Ki_speed = 0.0002f;
 
 float speed_Error = 0.0f;
 float speed_Error_sum = 0.0f;
 
-float speed_Ki_MAX = 1.0f;
-float i_ref_MAX = 1.0f;
+float speed_Ki_MAX = 1.5f;
+float i_ref_MAX = 1.5f;
 
 // -- SVPWM --
 
@@ -90,8 +94,11 @@ void MyFOC_Init()
     // Kp_I = Ls * 0.25f;
     // Ki_I = Rs * 0.25f;
 
-    Kp_I = Ls * 0.1f;
-    Ki_I = Rs * 0.1f;
+    // Kp_I = Ls * 0.5f;
+    // Ki_I = Rs * 0.5f;
+
+    // Kp_I = Ls * 0.1f;
+    // Ki_I = Rs * 0.1f;
 
     // Kp_I = 1.0f;
     // Ki_I = 1.0f;
@@ -154,7 +161,30 @@ void Get_Electrical_Angle()
 	cos_elangle = arm_cos_f32(elAngle);
 }
 
+//电角度预测
+void Pre_Electrical_Angle(uint16_t motor_raw_angle, uint16_t time, float motor_speed)
+{
+    uint16_t now_time = __HAL_TIM_GET_COUNTER(&htim6);
+	int32_t d_time = (int32_t)now_time - (int32_t)time;
 
+    if (d_time < 0)
+    {
+        d_time += 65535;
+    } 
+
+    // angle_raw = angle_raw1;
+
+    motor_angle = motor_raw_angle / 4096.0f * 2*PI + motor_speed * (float)d_time * 1e-6f;
+		
+	// return Dir * angle * POLE_PAIRS - Zero_elAngle;
+
+    elAngle = Normalize_Angle(Dir * motor_angle * POLE_PAIRS + Zero_elAngle);
+	
+    // record();//出现突变停止
+
+	sin_elangle = arm_sin_f32(elAngle);
+	cos_elangle = arm_cos_f32(elAngle);
+}
 
 float Get_Angle()
 {
@@ -195,110 +225,110 @@ void Set_PhaseVoltage(float Ud, float Uq)
 
 	// --- 克拉克逆变换(SPWM) ---
 
-	// Ua = Ualpha + Udc*0.5f;
-	// Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Udc* 0.5f;
-	// Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Udc* 0.5f;
+	Ua = Ualpha + Udc*0.5f;
+	Ub = (sqrt3 * Ubeta - Ualpha) * 0.5f +  Udc* 0.5f;
+	Uc = -(Ualpha + sqrt3 * Ubeta) * 0.5f +  Udc* 0.5f;
 
-    // Set_PWM(Ua, Ub, Uc);
+    Set_PWM(Ua, Ub, Uc);
 
 
-	// --- SVPWM ---
+	// // --- SVPWM ---
 
-    UABC[0] = Ubeta;
-    UABC[1] = (sqrt3 * Ualpha - Ubeta)*0.5f;
-    UABC[2] = (-sqrt3 * Ualpha - Ubeta)*0.5f;
+    // UABC[0] = Ubeta;
+    // UABC[1] = (sqrt3 * Ualpha - Ubeta)*0.5f;
+    // UABC[2] = (-sqrt3 * Ualpha - Ubeta)*0.5f;
 
-    // 扇区判断
-    N = 0;
-    if(UABC[0] > 0) N += 1;
-    if(UABC[1] > 0) N += 2;
-    if(UABC[2] > 0) N += 4;
+    // // 扇区判断
+    // N = 0;
+    // if(UABC[0] > 0) N += 1;
+    // if(UABC[1] > 0) N += 2;
+    // if(UABC[2] > 0) N += 4;
 
-    //作用时间计算
-	XYZ[0] = SVPWM_a * UABC[0];
-    XYZ[1] = -SVPWM_a * UABC[2];
-    XYZ[2] = -SVPWM_a * UABC[1];
+    // //作用时间计算
+	// XYZ[0] = SVPWM_a * UABC[0];
+    // XYZ[1] = -SVPWM_a * UABC[2];
+    // XYZ[2] = -SVPWM_a * UABC[1];
 
-    switch (N) 
-    {
-        case 3:  // 扇区 I
-            T[0] = -XYZ[2];
-            T[1] = XYZ[0]; 
-            break;
-        case 1:  // 扇区 II
-            T[0] = XYZ[2];
-            T[1] = XYZ[1]; 
-            break;
-        case 5:  // 扇区 III
-            T[0] = XYZ[0];
-            T[1] = -XYZ[1]; 
-            break;
-        case 4:  // 扇区 IV
-            T[0] = -XYZ[0];
-            T[1] = XYZ[2]; 
-            break;
-        case 6:  // 扇区 V
-            T[0] = -XYZ[1];
-            T[1] = -XYZ[2]; 
-            break;
-        case 2:  // 扇区 VI
-            T[0] = XYZ[1];
-            T[1] = -XYZ[0]; 
-            break;
-        default:
-            T[0] = 0;
-            T[1] = 0;
-            break;
-    }
+    // switch (N) 
+    // {
+    //     case 3:  // 扇区 I
+    //         T[0] = -XYZ[2];
+    //         T[1] = XYZ[0]; 
+    //         break;
+    //     case 1:  // 扇区 II
+    //         T[0] = XYZ[2];
+    //         T[1] = XYZ[1]; 
+    //         break;
+    //     case 5:  // 扇区 III
+    //         T[0] = XYZ[0];
+    //         T[1] = -XYZ[1]; 
+    //         break;
+    //     case 4:  // 扇区 IV
+    //         T[0] = -XYZ[0];
+    //         T[1] = XYZ[2]; 
+    //         break;
+    //     case 6:  // 扇区 V
+    //         T[0] = -XYZ[1];
+    //         T[1] = -XYZ[2]; 
+    //         break;
+    //     case 2:  // 扇区 VI
+    //         T[0] = XYZ[1];
+    //         T[1] = -XYZ[0]; 
+    //         break;
+    //     default:
+    //         T[0] = 0;
+    //         T[1] = 0;
+    //         break;
+    // }
     
-    //CCR计算
-    Tabc[0] = Constrain((TPWM - T[0] - T[1])*0.25f + 0.5f, 0.0f, TPWM*0.5f);
-    Tabc[1] = Constrain(Tabc[0] + T[0]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
-    Tabc[2] = Constrain(Tabc[1] + T[1]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
+    // //CCR计算
+    // Tabc[0] = Constrain((TPWM - T[0] - T[1])*0.25f + 0.5f, 0.0f, TPWM*0.5f);
+    // Tabc[1] = Constrain(Tabc[0] + T[0]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
+    // Tabc[2] = Constrain(Tabc[1] + T[1]*0.5f + 0.5f, 0.0f, TPWM*0.5f);
 
-    switch (N) 
-    {
-        case 3:  // 扇区 I
-            CCR[0] = Tabc[0];
-            CCR[1] = Tabc[1];
-            CCR[2] = Tabc[2];
-            break;
-        case 1:  // 扇区 II
-            CCR[0] = Tabc[1];
-            CCR[1] = Tabc[0];
-            CCR[2] = Tabc[2];
-            break;
-        case 5:  // 扇区 III
-            CCR[0] = Tabc[2];
-            CCR[1] = Tabc[0];
-            CCR[2] = Tabc[1];
-            break;
-        case 4:  // 扇区 IV
-            CCR[0] = Tabc[2];
-            CCR[1] = Tabc[1];
-            CCR[2] = Tabc[0];
-            break;
-        case 6:  // 扇区 V
-            CCR[0] = Tabc[1];
-            CCR[1] = Tabc[2];
-            CCR[2] = Tabc[0];
-            break;
-        case 2:  // 扇区 VI
-            CCR[0] = Tabc[0];
-            CCR[1] = Tabc[2];
-            CCR[2] = Tabc[1];
-            break;
-        default:
-            CCR[0] = 0;
-            CCR[1] = 0;
-            CCR[2] = 0;
-            break;
-    }
+    // switch (N) 
+    // {
+    //     case 3:  // 扇区 I
+    //         CCR[0] = Tabc[0];
+    //         CCR[1] = Tabc[1];
+    //         CCR[2] = Tabc[2];
+    //         break;
+    //     case 1:  // 扇区 II
+    //         CCR[0] = Tabc[1];
+    //         CCR[1] = Tabc[0];
+    //         CCR[2] = Tabc[2];
+    //         break;
+    //     case 5:  // 扇区 III
+    //         CCR[0] = Tabc[2];
+    //         CCR[1] = Tabc[0];
+    //         CCR[2] = Tabc[1];
+    //         break;
+    //     case 4:  // 扇区 IV
+    //         CCR[0] = Tabc[2];
+    //         CCR[1] = Tabc[1];
+    //         CCR[2] = Tabc[0];
+    //         break;
+    //     case 6:  // 扇区 V
+    //         CCR[0] = Tabc[1];
+    //         CCR[1] = Tabc[2];
+    //         CCR[2] = Tabc[0];
+    //         break;
+    //     case 2:  // 扇区 VI
+    //         CCR[0] = Tabc[0];
+    //         CCR[1] = Tabc[2];
+    //         CCR[2] = Tabc[1];
+    //         break;
+    //     default:
+    //         CCR[0] = 0;
+    //         CCR[1] = 0;
+    //         CCR[2] = 0;
+    //         break;
+    // }
 
 
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, CCR[0]);
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, CCR[1]);
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, CCR[2]);
+    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, CCR[0]);
+    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, CCR[1]);
+    // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, CCR[2]);
 
 }
 
@@ -397,8 +427,14 @@ void Current_PI_Control(float* idq_ref, float* idq)
     I_Error_sum[0] += I_Error[0];
     I_Error_sum[1] += I_Error[1];
 
-    Udq_ref[0] = Kp_I * I_Error[0] + Constrain(Ki_I * I_Error_sum[0],-Ki_MAX,Ki_MAX);
-    Udq_ref[1] = Kp_I * I_Error[1] + Constrain(Ki_I * I_Error_sum[1],-Ki_MAX,Ki_MAX);
+    I_Error_sum[0] = Constrain(I_Error_sum[0],-Ki_MAX/Ki_I,Ki_MAX/Ki_I);
+    I_Error_sum[1] = Constrain(I_Error_sum[1],-Ki_MAX/Ki_I,Ki_MAX/Ki_I);
+
+    // Udq_ref[0] = Kp_I * I_Error[0] + Constrain(Ki_I * I_Error_sum[0],-Ki_MAX,Ki_MAX);
+    // Udq_ref[1] = Kp_I * I_Error[1] + Constrain(Ki_I * I_Error_sum[1],-Ki_MAX,Ki_MAX);
+
+    Udq_ref[0] = Kp_I * I_Error[0] + Ki_I * I_Error_sum[0];
+    Udq_ref[1] = Kp_I * I_Error[1] + Ki_I * I_Error_sum[1];
 
     Set_PhaseVoltage(Constrain(Udq_ref[0],-Udq_MAX,Udq_MAX), Constrain(Udq_ref[1],-Udq_MAX,Udq_MAX));
 }
@@ -409,7 +445,11 @@ float Speed_PI_Control(float speed_ref, float speed)
 
     speed_Error_sum += speed_Error;
 
-    float i_ref =  Kp_speed * speed_Error + Constrain(Ki_speed * speed_Error_sum,-speed_Ki_MAX,speed_Ki_MAX);
+    speed_Error_sum = Constrain(speed_Error_sum,-speed_Ki_MAX/Ki_speed,speed_Ki_MAX/Ki_speed);
+
+    // float i_ref =  Kp_speed * speed_Error + Constrain(Ki_speed * speed_Error_sum,-speed_Ki_MAX,speed_Ki_MAX);
+    
+    float i_ref =  Kp_speed * speed_Error + Ki_speed * speed_Error_sum;
 
     return Constrain(i_ref,-i_ref_MAX,i_ref_MAX);
 }
