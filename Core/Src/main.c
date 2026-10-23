@@ -139,6 +139,10 @@ uint16_t Motor_raw_angle = 0;
 
 int32_t Motor_angle_Time = 0;//角度获取时TIM6计数值
 
+//串口调试数据接收
+
+uint8_t UART_Rx_buffer[10];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -174,7 +178,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
             }
         }
 
-        if (i_curb_flag == 2)   // 电流环控制
+        if (i_curb_flag == 2)   // 电流环控制 20kHz
         {
             iabc_raw[0] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_1)-ia_zero;
             iabc_raw[1] = HAL_ADCEx_InjectedGetValue(hadc, ADC_INJECTED_RANK_2)-ib_zero;
@@ -196,7 +200,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
 
             // Get_Electrical_Angle(); //电角度获取 耗时155us,需优化
 
-            Pre_Electrical_Angle(Motor_raw_angle, Motor_angle_Time, Motor_speed);
+            Prev_Electrical_Angle(Motor_raw_angle, Motor_angle_Time, Motor_speed);
 
             angle_Time = __HAL_TIM_GET_COUNTER(&htim6) - angle_now;
 
@@ -208,7 +212,7 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc) {
 
             SVPWM_Time = __HAL_TIM_GET_COUNTER(&htim6) - SVPWM_now;
 
-            all_Time = __HAL_TIM_GET_COUNTER(&htim6) - all_now; //总耗时160us
+            all_Time = __HAL_TIM_GET_COUNTER(&htim6) - all_now; //总耗时16us
 
 
             // Set_PhaseVoltage(Ud, Uq);
@@ -286,7 +290,7 @@ int main(void)
     HAL_TIM_Base_Start_IT(&htim4);  // 开启定时器4 用于速度环计算
 
 
-
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, UART_Rx_buffer, sizeof(UART_Rx_buffer));  //开启串口接收
 
 	// Uq = 1;
   /* USER CODE END 2 */
@@ -450,10 +454,21 @@ float Speed_Calc(uint16_t new_angle)
     return speed_filt;
 }
 
+//串口接收中断回调函数
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+    if (huart->Instance == USART1) {
+
+        Motor_speed_ref = (float)UART_Rx_buffer[0];
+
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, UART_Rx_buffer, sizeof(UART_Rx_buffer));  //开启串口接收
+    }
+}
+
 uint16_t T2Count1 = 0;
-uint16_t T2Count2 = 0;
-uint16_t tx_Time = 2;
-uint8_t speed_flag = 0;
+// uint16_t T2Count2 = 0;
+uint16_t tx_Time = 1;
+// uint8_t speed_flag = 0;
 
 //定时器中断回调函数
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -491,29 +506,29 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
             // printf("%d,%d\r\n",ia_zero,ib_zero);
 
-            if (T2Count2 >= 500)
-            {
-                T2Count2 = 0;
+            // if (T2Count2 >= 500)
+            // {
+            //     T2Count2 = 0;
 
-                if (speed_flag == 0)
-                {
-                    Motor_speed_ref += 10.0f;
+            //     if (speed_flag == 0)
+            //     {
+            //         Motor_speed_ref += 10.0f;
 
-                    if (Motor_speed_ref > 150.0f)
-                    {
-                        speed_flag = 1;
-                    }
-                }
-                if (speed_flag == 1)
-                {
-                    Motor_speed_ref -= 10.0f;
+            //         if (Motor_speed_ref > 150.0f)
+            //         {
+            //             speed_flag = 1;
+            //         }
+            //     }
+            //     if (speed_flag == 1)
+            //     {
+            //         Motor_speed_ref -= 10.0f;
 
-                    if (Motor_speed_ref <= -120.0f)
-                    {
-                        speed_flag = 0;
-                    }
-                }
-            }
+            //         if (Motor_speed_ref <= -120.0f)
+            //         {
+            //             speed_flag = 0;
+            //         }
+            //     }
+            // }
 		}
 	}
     if (htim->Instance == TIM4)

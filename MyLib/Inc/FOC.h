@@ -41,7 +41,7 @@ void Get_CCR(uint16_t* ccr);
 void Get_idiq(int16_t* iabc,float* ialpha_beta, float* idq);
 
 void Get_Electrical_Angle();
-void Pre_Electrical_Angle(uint16_t motor_raw_angle, int32_t time, float motor_speed);
+void Prev_Electrical_Angle(uint16_t motor_raw_angle, int32_t time, float motor_speed);
 
 void Current_PI_Control(float* idq_ref, float* idq);
 

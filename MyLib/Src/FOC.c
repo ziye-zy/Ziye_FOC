@@ -173,7 +173,7 @@ void Get_Electrical_Angle()
 }
 
 //电角度预测
-void Pre_Electrical_Angle(uint16_t motor_raw_angle, int32_t time, float motor_speed)
+void Prev_Electrical_Angle(uint16_t motor_raw_angle, int32_t time, float motor_speed)
 {
     uint16_t now_time = __HAL_TIM_GET_COUNTER(&htim6);
 	int32_t d_time = (int32_t)now_time - time;

@@ -2,6 +2,7 @@
 #define __MYUART_H
 
 #include "stm32g4xx_hal.h"
+#include "stm32g4xx_hal_uart.h"
 #include "usart.h"
 #include <stdio.h>
 
@@ -15,10 +16,9 @@
 int _write(int file, char *ptr, int len)
 {
     // 通过HAL库函数将数据通过串口发出
-    // HAL_MAX_DELAY 表示无限等待，直到发送完成
-    HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, 2);
+    // HAL_MAX_DELAY 表示无限等待，直到发送完成 time = 2
+    HAL_UART_Transmit_DMA(&huart1, (uint8_t *)ptr, len);
     return len;
 }
-
 
 #endif
