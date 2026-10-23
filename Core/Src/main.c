@@ -406,11 +406,19 @@ static inline int32_t angle_diff(uint16_t new_angle, uint16_t old_angle)
     return diff;
 }
 
+uint16_t prev_Speed_Calc_time = 0;
+uint16_t new_Speed_Calc_time = 0;
+
+int32_t dt = 0;
+
 float Speed_Calc(uint16_t new_angle)
 {
     if (first_sample) {
         prev_angle = new_angle;
         first_sample = 0;
+
+        prev_Speed_Calc_time = __HAL_TIM_GET_COUNTER(&htim6);
+
         return 0.0f;
     }
     
@@ -418,8 +426,23 @@ float Speed_Calc(uint16_t new_angle)
     int32_t d_angle = angle_diff(new_angle, prev_angle);
     prev_angle = new_angle;
     
-    // 差分速度 (rad/s)
-    float speed_raw = ((float)d_angle / 4096.0f) * 2.0f * 3.1415926f / SPEED_DT;
+    new_Speed_Calc_time = __HAL_TIM_GET_COUNTER(&htim6);
+
+    // 差分时间
+
+    // int32_t dt = new_Speed_Calc_time - prev_Speed_Calc_time;
+    dt = new_Speed_Calc_time - prev_Speed_Calc_time;
+    if (dt < 0) {
+        dt += 65535;
+    }
+
+    prev_Speed_Calc_time = new_Speed_Calc_time;
+
+    // // 差分速度 (rad/s)  旧方法，利用固定间隔计算速度
+    // float speed_raw = ((float)d_angle / 4096.0f) * 2.0f * 3.1415926f / SPEED_DT;
+
+    // 差分速度 (rad/s) 新方法，利用实时计算的间隔计算速度
+    float speed_raw = ((float)d_angle / 4096.0f) * 2.0f * 3.1415926f * 1000000 / dt;
     
     // 一阶低通滤波
     speed_filt = SPEED_LPF_ALPHA * speed_raw + (1.0f - SPEED_LPF_ALPHA) * speed_filt;

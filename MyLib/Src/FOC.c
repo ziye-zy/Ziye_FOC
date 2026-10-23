@@ -28,7 +28,10 @@ float Udq_MAX = 5.5f;
 // float Ki_speed = 0.0002f;
 
 //公式计算得出
-float Kp_speed = 0.0414f;  
+// float Kp_speed = 0.0414f;  
+// float Ki_speed = 0.00016558f;
+
+float Kp_speed = 0.0200f;  
 float Ki_speed = 0.00016558f;
 
 
