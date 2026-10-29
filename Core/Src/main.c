@@ -34,6 +34,7 @@
 #include "arm_math.h"
 #include "FOC.h"
 #include <stdint.h>
+#include <stdlib.h>
 
 /* USER CODE END Includes */
 
@@ -141,7 +142,12 @@ int32_t Motor_angle_Time = 0;//角度获取时TIM6计数值
 
 //串口调试数据接收
 
-uint8_t UART_Rx_buffer[10];
+// uint8_t UART_Rx_buffer[10];
+
+#define RX_BUF_SIZE  256
+uint8_t  rx_buffer[RX_BUF_SIZE];
+volatile uint16_t rx_len = 0;
+volatile uint8_t  rx_flag = 0;
 
 /* USER CODE END PV */
 
@@ -290,7 +296,9 @@ int main(void)
     HAL_TIM_Base_Start_IT(&htim4);  // 开启定时器4 用于速度环计算
 
 
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, UART_Rx_buffer, sizeof(UART_Rx_buffer));  //开启串口接收
+    // HAL_UARTEx_ReceiveToIdle_DMA(&huart1, UART_Rx_buffer, sizeof(UART_Rx_buffer));  //开启串口接收
+
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUF_SIZE);
 
 	// Uq = 1;
   /* USER CODE END 2 */
@@ -459,9 +467,20 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     if (huart->Instance == USART1) {
 
-        Motor_speed_ref = (float)UART_Rx_buffer[0];
+        // Motor_speed_ref = (float)UART_Rx_buffer[0];
 
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, UART_Rx_buffer, sizeof(UART_Rx_buffer));  //开启串口接收
+        rx_len = Size;
+        if (rx_len < RX_BUF_SIZE) {
+            rx_buffer[rx_len] = '\0';   // 手动补字符串结束符
+        }
+
+        char *endptr;
+
+        Motor_speed_ref = strtof((char *)rx_buffer, &endptr);
+        // rx_flag = 1;                     // 通知主循环有完整数据
+
+        // HAL_UARTEx_ReceiveToIdle_DMA(&huart1, UART_Rx_buffer, sizeof(UART_Rx_buffer));  //开启串口接收
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUF_SIZE);
     }
 }
 
@@ -498,7 +517,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             // Get_Electrical_Angle();
             // printf("%f,%d\r\n",Get_Angle(),Get_Angle_raw());
 
-            printf("%f,%f,%f,%f,%f\r\n",Motor_speed_ref,Motor_speed,idq_ref[1],idq[0],idq[1]);
+            printf("%.4f,%.4f,%.4f,%.4f,%.4f\r\n",Motor_speed_ref,Motor_speed,idq_ref[1],idq[0],idq[1]);
 
             // printf("%d,%d\r\n",Time1,Time2);
 
